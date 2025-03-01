@@ -1,1 +1,3 @@
 {"Source": "test", "Caller": "test", "Location": "A", "Code": "Red", "Description": "test", "ResolutionStatus": true, "CallID": "C0001", "CallTimestamp": "2025-03-01 16:09:55", "ResolutionTimestamp": "2025-03-01 16:10:07", "ResolvedBy": "Frank"}
+{"Source": "asdfasdf", "Caller": "asdfasdf", "Location": "A", "Code": "Red", "Description": "asdfasdf", "ResolutionStatus": false, "CallID": "C0001", "CallTimestamp": "2025-03-01 16:12:15", "ResolutionTimestamp": "", "ResolvedBy": ""}
+{"Source": "fdasfdas", "Caller": "fdasfads", "Location": "A", "Code": "Red", "Description": "fdasfads", "ResolutionStatus": false, "CallID": "C0001", "CallTimestamp": "2025-03-01 16:12:28", "ResolutionTimestamp": "", "ResolvedBy": ""}

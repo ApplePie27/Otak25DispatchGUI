@@ -148,7 +148,6 @@ class DispatchCallApp:
         # GUI Layout
         self.create_input_fields()
         self.create_buttons()
-        self.create_notifications()
 
         # Start auto-save 10 seconds after the program starts
         self.root.after(10000, self.auto_save)  # Delay auto-save by 10 seconds
@@ -278,19 +277,6 @@ class DispatchCallApp:
         text.insert(tk.END, full_description)
         text.config(state=tk.DISABLED)  # Make it read-only
         text.pack(padx=10, pady=10)
-
-    def create_notifications(self):
-        self.notification_label = ttk.Label(self.root, text="", foreground="red")
-        self.notification_label.grid(row=3, column=0, padx=10, pady=10, sticky="w")
-        self.check_unresolved_calls()
-
-    def check_unresolved_calls(self):
-        unresolved = [call for call in self.manager.calls if not call.get("ResolutionStatus", False)]
-        if unresolved:
-            self.notification_label.config(text=f"Warning: {len(unresolved)} unresolved calls!")
-        else:
-            self.notification_label.config(text="All calls resolved.")
-        self.root.after(60000, self.check_unresolved_calls)  # Check every minute
 
     def auto_save(self):
         if self.manager._calculate_hash() != self.manager.last_saved_hash:
