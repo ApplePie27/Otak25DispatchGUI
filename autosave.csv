@@ -1,0 +1,2 @@
+CallID,CallTimestamp,ResolutionTimestamp,ResolutionStatus,Source,Caller,Location,Code,Description,ResolvedBy
+C0001,2025-03-01 16:09:55,2025-03-01 16:10:07,True,test,test,A,Red,test,Frank
