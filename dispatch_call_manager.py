@@ -11,7 +11,7 @@ class DispatchCallManager:
         self.calls = []
         self.undo_stack = []
         self.redo_stack = []
-        self.report_counter = 1
+        self.report_counter = 1  # Initialize the counter
         self.current_user = None  # Track the current user
         self.last_saved_hash = None  # Track the last saved state
 
@@ -19,8 +19,8 @@ class DispatchCallManager:
         self.current_user = username
 
     def add_call(self, call):
-        call["CallID"] = f"C{self.report_counter:04d}"
-        self.report_counter += 1
+        call["CallID"] = f"C{self.report_counter:04d}"  # Format CallID as C0001, C0002, etc.
+        self.report_counter += 1  # Increment the counter for the next call
         call["CallTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         call["ResolutionTimestamp"] = ""  # Initialize as empty
         call["ResolvedBy"] = ""  # Initialize as empty
@@ -109,10 +109,21 @@ class DispatchCallManager:
                     for row in reader:
                         self.calls.append(row)
             self.last_saved_hash = self._calculate_hash()
+
+            # Update the report_counter based on the loaded data
+            self._update_report_counter()
             return True
         except Exception as e:
             print(f"Error loading file: {e}")
             return False
+
+    def _update_report_counter(self):
+        # Find the highest CallID in the loaded data and update report_counter
+        if self.calls:
+            last_call_id = max(int(call["CallID"][1:]) for call in self.calls)  # Extract numeric part of CallID
+            self.report_counter = last_call_id + 1  # Set counter to the next available number
+        else:
+            self.report_counter = 1  # If no calls are loaded, start from 1
 
     def _calculate_hash(self):
         # Calculate a hash of the current data to detect changes
