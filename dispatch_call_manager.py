@@ -20,9 +20,10 @@ class DispatchCallManager:
         self.current_user = username
 
     def add_call(self, call):
-        call["CallID"] = f"C{self.report_counter:04d}"  # Format CallID as C0001, C0002, etc.
+        call["CallID"] = f"DC25{self.report_counter:04d}"  # Format CallID as DC250001, DC250002, etc.
         self.report_counter += 1  # Increment the counter for the next call
-        call["CallTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        call["CallDate"] = datetime.now().strftime("%Y-%m-%d")  # Date only
+        call["CallTime"] = datetime.now().strftime("%H:%M")  # Time without seconds
         call["ResolutionTimestamp"] = ""  # Initialize as empty
         call["ResolvedBy"] = ""  # Initialize as empty
         self.calls.append(call)
@@ -32,7 +33,7 @@ class DispatchCallManager:
         for call in self.calls:
             if call["CallID"] == call_id:
                 call["ResolutionStatus"] = True
-                call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 call["ResolvedBy"] = resolved_by
                 self.undo_stack.append(("resolve", call))
                 break
@@ -72,7 +73,7 @@ class DispatchCallManager:
             self.undo_stack.append(("add", call))
         elif action == "resolve":
             call["ResolutionStatus"] = True
-            call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             self.undo_stack.append(("resolve", call))
         elif action == "modify":
             for c in self.calls:
@@ -89,7 +90,7 @@ class DispatchCallManager:
         elif filetype == "csv":
             with open(filename, "w", newline="") as file:
                 fieldnames = [
-                    "CallID", "CallTimestamp", "ResolutionTimestamp", "ResolutionStatus",
+                    "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
                     "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
                 ]
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -121,7 +122,7 @@ class DispatchCallManager:
     def _update_report_counter(self):
         # Find the highest CallID in the loaded data and update report_counter
         if self.calls:
-            last_call_id = max(int(call["CallID"][1:]) for call in self.calls)  # Extract numeric part of CallID
+            last_call_id = max(int(call["CallID"][4:]) for call in self.calls)  # Extract numeric part of CallID
             self.report_counter = last_call_id + 1  # Set counter to the next available number
         else:
             self.report_counter = 1  # If no calls are loaded, start from 1
@@ -158,7 +159,7 @@ class DispatchCallApp:
         self.source_var = tk.StringVar()
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar(value="A")  # Default location
-        self.code_var = tk.StringVar(value="Red")  # Default code
+        self.code_var = tk.StringVar(value="Green")  # Default code
         self.description_var = tk.StringVar()
 
         # GUI Layout
@@ -214,7 +215,7 @@ class DispatchCallApp:
 
         # Code dropdown
         ttk.Label(fields_frame, text="Code:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        code_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Brown"]
+        code_options = ["Green", "Orange", "Red", "Purple", "Silver", "Adam", "Blue", "Yellow", "P1", "P2", "P3"]
         ttk.Combobox(fields_frame, textvariable=self.code_var, values=code_options).grid(row=4, column=1, padx=5, pady=5, sticky="w")
 
         # Description text area
@@ -255,7 +256,7 @@ class DispatchCallApp:
         self.table = ttk.Treeview(
             self.root,
             columns=(
-                "CallID", "CallTimestamp", "ResolutionTimestamp", "ResolutionStatus",
+                "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
                 "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
             ),
             show="headings"
@@ -265,7 +266,8 @@ class DispatchCallApp:
         # Define column headings
         columns = [
             ("CallID", "Call ID"),
-            ("CallTimestamp", "Call Timestamp"),
+            ("CallDate", "Call Date"),
+            ("CallTime", "Call Time"),
             ("ResolutionTimestamp", "Resolution Timestamp"),
             ("ResolutionStatus", "Resolution Status"),
             ("InputMedium", "Input Medium"),
@@ -290,7 +292,8 @@ class DispatchCallApp:
             resolved = call.get("ResolutionStatus", False)
             self.table.insert("", "end", values=(
                 call["CallID"],
-                call["CallTimestamp"],
+                call["CallDate"],
+                call["CallTime"],
                 call.get("ResolutionTimestamp", ""),
                 "Resolved" if resolved else "Unresolved",
                 call.get("InputMedium", ""),
