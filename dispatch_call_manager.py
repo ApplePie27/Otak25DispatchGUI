@@ -269,7 +269,7 @@ class DispatchCallApp:
             ("CallID", "Call ID"),
             ("CallDate", "Call Date"),
             ("CallTime", "Call Time"),
-            ("ResolutionTimestamp", "Resolution Timestamp"),
+            ("ResolutionTimestamp", "Resolution Time"),
             ("ResolutionStatus", "Resolution Status"),
             ("InputMedium", "Input Medium"),
             ("Source", "Source"),

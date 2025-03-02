@@ -1,2 +1,0 @@
-{"Source": "Frank", "Caller": "asdf", "Location": "A", "Code": "Red", "Description": "asdfasdfasdfasdfasdf", "ResolutionStatus": true, "CallID": "C0001", "CallTimestamp": "2025-03-01 15:14:58", "ResolutionTimestamp": "2025-03-01 15:15:30", "ResolvedBy": "francine"}
-{"Source": "RADIO SAFETY", "Caller": "C4", "Location": "D", "Code": "Pink", "Description": "FIRE IN THE BATHROOM", "ResolutionStatus": false, "CallID": "C0002", "CallTimestamp": "2025-03-01 15:15:14", "ResolutionTimestamp": "", "ResolvedBy": ""}
