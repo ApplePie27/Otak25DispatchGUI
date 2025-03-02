@@ -138,6 +138,9 @@ class DispatchCallApp:
         self.root.title("Dispatch Call Management System")
         self.manager = DispatchCallManager()
 
+        # Track the last loaded file's hash
+        self.last_loaded_hash = None
+
         # Create the log area before loading autosave
         self.create_log_area()  # Ensure log area is created first
 
@@ -168,6 +171,7 @@ class DispatchCallApp:
     def load_autosave(self):
         try:
             if self.manager.load_from_file("autosave.txt", filetype="txt"):
+                self.last_loaded_hash = self.manager._calculate_hash()  # Update the last loaded hash
                 self.log("Autosave loaded successfully.")
                 self.update_table()  # Refresh the table if autosave is loaded
             else:
@@ -301,6 +305,10 @@ class DispatchCallApp:
         # Change background color of resolved Call IDs
         self.table.tag_configure("resolved", background="light green")
 
+        # Scroll to the bottom of the table to show the latest entry
+        if self.table.get_children():
+            self.table.see(self.table.get_children()[-1])  # Scroll to the last row
+
     def show_full_description(self, event):
         selected = self.table.selection()
         if selected:
@@ -336,10 +344,26 @@ class DispatchCallApp:
             self.log("Failed to reload data.")
 
     def reload_data_loop(self):
-        # Reload the data every 125 ms
-        if self.manager.load_from_file("autosave.txt", filetype="txt"):
-            self.update_table()  # Refresh the table
-        self.root.after(125, self.reload_data_loop)  # Schedule the next reload
+        # Check if the autosave file has changed
+        current_hash = self._calculate_file_hash("autosave.txt")
+        if current_hash != self.last_loaded_hash:
+            # Reload the data if the file has changed
+            if self.manager.load_from_file("autosave.txt", filetype="txt"):
+                self.last_loaded_hash = current_hash  # Update the last loaded hash
+                self.update_table()  # Refresh the table
+                self.log("Data reloaded due to changes in autosave file.")
+
+        # Schedule the next reload check
+        self.root.after(125, self.reload_data_loop)
+
+    def _calculate_file_hash(self, filename):
+        # Calculate the hash of the file to detect changes
+        try:
+            with open(filename, "rb") as file:
+                file_content = file.read()
+                return hashlib.md5(file_content).hexdigest()
+        except FileNotFoundError:
+            return None  # File does not exist
 
     def add_call(self):
         call = {
@@ -407,7 +431,7 @@ class DispatchCallApp:
         self.log_area.config(state=tk.NORMAL)
         self.log_area.insert(tk.END, f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
         self.log_area.config(state=tk.DISABLED)
-        self.log_area.see(tk.END)  # Scroll to the bottom
+        self.log_area.see(tk.END)  # Scroll to the bottom to show the latest message
 
 
 if __name__ == "__main__":
