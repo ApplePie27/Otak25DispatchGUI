@@ -26,6 +26,8 @@ class DispatchCallManager:
         call["CallTime"] = datetime.now().strftime("%H:%M")  # Time without seconds
         call["ResolutionTimestamp"] = ""  # Initialize as empty
         call["ResolvedBy"] = ""  # Initialize as empty
+        call["CreatedBy"] = self.current_user  # Track who created the call
+        call["ModifiedBy"] = ""  # Initialize ModifiedBy as empty
         self.calls.append(call)
         self.undo_stack.append(("add", call))
 
@@ -35,6 +37,7 @@ class DispatchCallManager:
                 call["ResolutionStatus"] = True
                 call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 call["ResolvedBy"] = resolved_by
+                call["ModifiedBy"] = self.current_user  # Track who resolved the call
                 self.undo_stack.append(("resolve", call))
                 break
 
@@ -43,6 +46,7 @@ class DispatchCallManager:
             if call["CallID"] == call_id:
                 self.undo_stack.append(("modify", call.copy()))
                 call.update(updated_call)
+                call["ModifiedBy"] = self.current_user  # Track who modified the call
                 break
 
     def undo(self):
@@ -56,12 +60,14 @@ class DispatchCallManager:
             call["ResolutionStatus"] = False
             call["ResolutionTimestamp"] = ""
             call["ResolvedBy"] = ""
+            call["ModifiedBy"] = self.current_user  # Track who undid the resolution
             self.redo_stack.append(("resolve", call))
         elif action == "modify":
             for c in self.calls:
                 if c["CallID"] == call["CallID"]:
                     self.redo_stack.append(("modify", c.copy()))
                     c.update(call)
+                    c["ModifiedBy"] = self.current_user  # Track who undid the modification
                     break
 
     def redo(self):
@@ -74,12 +80,14 @@ class DispatchCallManager:
         elif action == "resolve":
             call["ResolutionStatus"] = True
             call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            call["ModifiedBy"] = self.current_user  # Track who redid the resolution
             self.undo_stack.append(("resolve", call))
         elif action == "modify":
             for c in self.calls:
                 if c["CallID"] == call["CallID"]:
                     self.undo_stack.append(("modify", c.copy()))
                     c.update(call)
+                    c["ModifiedBy"] = self.current_user  # Track who redid the modification
                     break
 
     def save_to_file(self, filename, filetype="txt"):
@@ -91,7 +99,8 @@ class DispatchCallManager:
             with open(filename, "w", newline="") as file:
                 fieldnames = [
                     "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
-                    "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
+                    "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy",
+                    "CreatedBy", "ModifiedBy"  # Added CreatedBy and ModifiedBy fields
                 ]
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()
@@ -165,7 +174,7 @@ class DispatchCallApp:
         # GUI Layout
         self.create_input_fields()
         self.create_buttons()
-        self.create_search_and_filter()  # Add search and filter functionality
+        self.create_search_bar()  # Add search bar functionality
 
         # Start the data reload loop every 125 ms
         self.root.after(125, self.reload_data_loop)
@@ -258,7 +267,8 @@ class DispatchCallApp:
             self.root,
             columns=(
                 "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
-                "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
+                "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy",
+                "CreatedBy", "ModifiedBy"  # Added CreatedBy and ModifiedBy columns
             ),
             show="headings"
         )
@@ -269,15 +279,17 @@ class DispatchCallApp:
             ("CallID", "Call ID"),
             ("CallDate", "Call Date"),
             ("CallTime", "Call Time"),
-            ("ResolutionTimestamp", "Resolution Time"),
+            ("ResolutionTimestamp", "Resolution Timestamp"),
             ("ResolutionStatus", "Resolution Status"),
             ("InputMedium", "Input Medium"),
             ("Source", "Source"),
             ("Caller", "Caller"),
             ("Location", "Location"),
-            ("Code", "Code"),  # Added Code column
+            ("Code", "Code"),
             ("Description", "Description"),
-            ("ResolvedBy", "Resolved By")
+            ("ResolvedBy", "Resolved By"),
+            ("CreatedBy", "Created By"),  # Added CreatedBy column
+            ("ModifiedBy", "Modified By")  # Added ModifiedBy column
         ]
         for col, heading in columns:
             self.table.heading(col, text=heading)
@@ -286,7 +298,7 @@ class DispatchCallApp:
         self.table.bind("<Double-1>", self.show_full_description)  # Double-click to show full description
         self.update_table()
 
-    def update_table(self, filter_text=None, sort_column=None, sort_order="asc"):
+    def update_table(self, filter_text=None):
         for row in self.table.get_children():
             self.table.delete(row)
 
@@ -300,11 +312,7 @@ class DispatchCallApp:
                 filter_text.lower() in call["Description"].lower()
             ]
 
-        # Sort calls based on the selected column
-        if sort_column:
-            filtered_calls.sort(key=lambda x: x[sort_column], reverse=(sort_order == "desc"))
-
-        # Populate the table with filtered and sorted calls
+        # Populate the table with filtered calls
         for call in filtered_calls:
             resolved = call.get("ResolutionStatus", False)
             self.table.insert("", "end", values=(
@@ -317,9 +325,11 @@ class DispatchCallApp:
                 call["Source"],
                 call["Caller"],
                 call["Location"],
-                call["Code"],  # Display Code
+                call["Code"],
                 call["Description"],
-                call.get("ResolvedBy", "")
+                call.get("ResolvedBy", ""),
+                call.get("CreatedBy", ""),  # Display CreatedBy
+                call.get("ModifiedBy", "")  # Display ModifiedBy
             ), tags=("resolved" if resolved else "unresolved"))
 
         # Change background color of resolved Call IDs
@@ -453,7 +463,7 @@ class DispatchCallApp:
         self.log_area.config(state=tk.DISABLED)
         self.log_area.see(tk.END)  # Scroll to the bottom to show the latest message
 
-    def create_search_and_filter(self):
+    def create_search_bar(self):
         # Search bar
         search_frame = ttk.Frame(self.root)
         search_frame.grid(row=3, column=0, padx=10, pady=10, sticky="w")
