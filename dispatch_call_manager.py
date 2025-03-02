@@ -4,6 +4,7 @@ import csv
 import json
 from datetime import datetime
 import hashlib
+import os
 
 
 class DispatchCallManager:
@@ -161,9 +162,8 @@ class DispatchCallApp:
         self.create_input_fields()
         self.create_buttons()
 
-        # Start auto-save 10 seconds after the program starts
-        self.root.after(10000, self.auto_save)  # Delay auto-save by 10 seconds
-        self.refresh_table()  # Start the refresh loop
+        # Start the data reload loop every 125 ms
+        self.root.after(125, self.reload_data_loop)
 
     def load_autosave(self):
         try:
@@ -322,17 +322,24 @@ class DispatchCallApp:
         text.config(state=tk.DISABLED)  # Make it read-only
         text.pack(padx=10, pady=10)
 
-    def auto_save(self):
-        if self.manager._calculate_hash() != self.manager.last_saved_hash:
-            self.manager.save_to_file("autosave.txt")
-            self.manager.save_to_file("autosave.csv", filetype="csv")  # Save to CSV as well
-            self.log("Autosave completed.")
-        self.root.after(5000, self.auto_save)  # Auto-save every 5 seconds
+    def save_and_reload(self):
+        # Save the data to the autosave file
+        self.manager.save_to_file("autosave.txt")
+        self.manager.save_to_file("autosave.csv", filetype="csv")  # Save to CSV as well
+        self.log("Autosave completed.")
 
-    def refresh_table(self):
+        # Reload the data from the autosave file
         if self.manager.load_from_file("autosave.txt", filetype="txt"):
             self.update_table()  # Refresh the table
-        self.root.after(5000, self.refresh_table)  # Refresh every 5 seconds
+            self.log("Data reloaded successfully.")
+        else:
+            self.log("Failed to reload data.")
+
+    def reload_data_loop(self):
+        # Reload the data every 125 ms
+        if self.manager.load_from_file("autosave.txt", filetype="txt"):
+            self.update_table()  # Refresh the table
+        self.root.after(125, self.reload_data_loop)  # Schedule the next reload
 
     def add_call(self):
         call = {
@@ -345,7 +352,7 @@ class DispatchCallApp:
             "ResolutionStatus": False
         }
         self.manager.add_call(call)
-        self.update_table()
+        self.save_and_reload()  # Autosave and reload after adding a call
         self.log(f"Call added: {call['CallID']}")
 
     def resolve_call(self):
@@ -355,7 +362,7 @@ class DispatchCallApp:
             resolved_by = simpledialog.askstring("Resolve Call", "Enter the name who resolved the call:", parent=self.root)
             if resolved_by:
                 self.manager.resolve_call(call_id, resolved_by)
-                self.update_table()
+                self.save_and_reload()  # Autosave and reload after resolving a call
                 self.log(f"Call resolved: {call_id} by {resolved_by}")
 
     def modify_call(self):
@@ -371,7 +378,7 @@ class DispatchCallApp:
                 "Description": self.description_entry.get("1.0", tk.END).strip()
             }
             self.manager.modify_call(call_id, updated_call)
-            self.update_table()
+            self.save_and_reload()  # Autosave and reload after modifying a call
             self.log(f"Call modified: {call_id}")
 
     def save_data(self):
