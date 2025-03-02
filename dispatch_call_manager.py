@@ -89,7 +89,7 @@ class DispatchCallManager:
             with open(filename, "w", newline="") as file:
                 fieldnames = [
                     "CallID", "CallTimestamp", "ResolutionTimestamp", "ResolutionStatus",
-                    "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
+                    "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
                 ]
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()
@@ -150,6 +150,7 @@ class DispatchCallApp:
         self.login()
 
         # Input Fields
+        self.input_medium_var = tk.StringVar(value="Radio")  # Default input medium
         self.source_var = tk.StringVar()
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar(value="A")  # Default location
@@ -186,23 +187,53 @@ class DispatchCallApp:
         fields_frame = ttk.LabelFrame(self.root, text="New Dispatch Call")
         fields_frame.grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
-        ttk.Label(fields_frame, text="Source:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        ttk.Entry(fields_frame, textvariable=self.source_var).grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        # Input Medium dropdown
+        ttk.Label(fields_frame, text="Input Medium:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        input_medium_options = ["Radio", "Social Media"]
+        input_medium_dropdown = ttk.Combobox(fields_frame, textvariable=self.input_medium_var, values=input_medium_options)
+        input_medium_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        input_medium_dropdown.bind("<<ComboboxSelected>>", self.update_source_and_location_options)
 
-        ttk.Label(fields_frame, text="Caller:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        ttk.Entry(fields_frame, textvariable=self.caller_var).grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        # Source dropdown
+        ttk.Label(fields_frame, text="Source:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.source_dropdown = ttk.Combobox(fields_frame, textvariable=self.source_var)
+        self.source_dropdown.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
-        ttk.Label(fields_frame, text="Location:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        location_options = ["A", "B", "C", "D", "E", "F", "G"]
-        ttk.Combobox(fields_frame, textvariable=self.location_var, values=location_options).grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        # Caller entry
+        ttk.Label(fields_frame, text="Caller:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Entry(fields_frame, textvariable=self.caller_var).grid(row=2, column=1, padx=5, pady=5, sticky="w")
 
-        ttk.Label(fields_frame, text="Code:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        # Location dropdown
+        ttk.Label(fields_frame, text="Location:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.location_dropdown = ttk.Combobox(fields_frame, textvariable=self.location_var)
+        self.location_dropdown.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+
+        # Code dropdown
+        ttk.Label(fields_frame, text="Code:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
         code_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Brown"]
-        ttk.Combobox(fields_frame, textvariable=self.code_var, values=code_options).grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        ttk.Combobox(fields_frame, textvariable=self.code_var, values=code_options).grid(row=4, column=1, padx=5, pady=5, sticky="w")
 
-        ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        # Description text area
+        ttk.Label(fields_frame, text="Description:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
         self.description_entry = scrolledtext.ScrolledText(fields_frame, width=40, height=5)  # Default font
-        self.description_entry.grid(row=4, column=1, padx=5, pady=5, sticky="w")
+        self.description_entry.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+
+        # Initialize source and location options based on default input medium
+        self.update_source_and_location_options()
+
+    def update_source_and_location_options(self, event=None):
+        # Update source and location options based on the selected input medium
+        input_medium = self.input_medium_var.get()
+        if input_medium == "Radio":
+            self.source_dropdown["values"] = ["Safety", "General", "First Aid"]
+            self.location_dropdown["values"] = ["A", "B", "C", "D", "E", "F", "G"]
+        elif input_medium == "Social Media":
+            self.source_dropdown["values"] = ["Phone", "SMS", "Discord"]
+            self.location_dropdown["values"] = ["H", "I", "J", "K", "L", "M", "N"]
+
+        # Set default values for source and location
+        self.source_var.set(self.source_dropdown["values"][0])
+        self.location_var.set(self.location_dropdown["values"][0])
 
     def create_buttons(self):
         buttons_frame = ttk.Frame(self.root)
@@ -221,7 +252,7 @@ class DispatchCallApp:
             self.root,
             columns=(
                 "CallID", "CallTimestamp", "ResolutionTimestamp", "ResolutionStatus",
-                "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
+                "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy"
             ),
             show="headings"
         )
@@ -233,6 +264,7 @@ class DispatchCallApp:
             ("CallTimestamp", "Call Timestamp"),
             ("ResolutionTimestamp", "Resolution Timestamp"),
             ("ResolutionStatus", "Resolution Status"),
+            ("InputMedium", "Input Medium"),
             ("Source", "Source"),
             ("Caller", "Caller"),
             ("Location", "Location"),
@@ -257,6 +289,7 @@ class DispatchCallApp:
                 call["CallTimestamp"],
                 call.get("ResolutionTimestamp", ""),
                 "Resolved" if resolved else "Unresolved",
+                call.get("InputMedium", ""),
                 call["Source"],
                 call["Caller"],
                 call["Location"],
@@ -303,6 +336,7 @@ class DispatchCallApp:
 
     def add_call(self):
         call = {
+            "InputMedium": self.input_medium_var.get(),
             "Source": self.source_var.get(),
             "Caller": self.caller_var.get(),
             "Location": self.location_var.get(),
@@ -329,6 +363,7 @@ class DispatchCallApp:
         if selected:
             call_id = self.table.item(selected[0], "values")[0]
             updated_call = {
+                "InputMedium": self.input_medium_var.get(),
                 "Source": self.source_var.get(),
                 "Caller": self.caller_var.get(),
                 "Location": self.location_var.get(),
