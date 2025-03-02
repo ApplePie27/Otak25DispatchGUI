@@ -293,7 +293,10 @@ class DispatchCallApp:
         ]
         for col, heading in columns:
             self.table.heading(col, text=heading)
-            self.table.column(col, width=120, anchor="center")  # Center-align content
+            if col == "Description":
+                self.table.column(col, width=120, anchor="w")  # Align Description to the left
+            else:
+                self.table.column(col, width=120, anchor="center")  # Center-align other columns
 
         self.table.bind("<Double-1>", self.show_full_description)  # Double-click to show full description
         self.update_table()
@@ -468,11 +471,27 @@ class DispatchCallApp:
         search_frame = ttk.Frame(self.root)
         search_frame.grid(row=3, column=0, padx=10, pady=10, sticky="w")
 
-        ttk.Label(search_frame, text="Search:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        # Add a click counter for the hidden cheesecake feature
+        self.search_label_click_count = 0
+
+        # Create the search label and bind the click event
+        self.search_label = ttk.Label(search_frame, text="Search:")
+        self.search_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.search_label.bind("<Button-1>", self.on_search_label_click)  # Bind left mouse click
+
         self.search_var = tk.StringVar()
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
         search_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         search_entry.bind("<KeyRelease>", self.on_search)
+
+    def on_search_label_click(self, event):
+        # Increment the click counter
+        self.search_label_click_count += 1
+
+        # If clicked 5 times, show the hidden cheesecake message
+        if self.search_label_click_count == 5:
+            messagebox.showinfo("Hidden Cheesecake", "Oh no, you have found the hidden cheesecake - Nhpha")
+            self.search_label_click_count = 0  # Reset the counter
 
     def on_search(self, event=None):
         filter_text = self.search_var.get()
