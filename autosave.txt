@@ -1,1 +1,0 @@
-{"InputMedium": "Social Media", "Source": "Phone", "Caller": "CC23", "Location": "H", "Code": "P1", "Description": "test", "ResolutionStatus": false, "CallID": "DC250001", "CallDate": "2025-03-01", "CallTime": "22:36", "ResolutionTimestamp": "", "ResolvedBy": ""}

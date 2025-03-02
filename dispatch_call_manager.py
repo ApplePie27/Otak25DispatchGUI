@@ -165,6 +165,7 @@ class DispatchCallApp:
         # GUI Layout
         self.create_input_fields()
         self.create_buttons()
+        self.create_search_and_filter()  # Add search and filter functionality
 
         # Start the data reload loop every 125 ms
         self.root.after(125, self.reload_data_loop)
@@ -280,15 +281,31 @@ class DispatchCallApp:
         ]
         for col, heading in columns:
             self.table.heading(col, text=heading)
-            self.table.column(col, width=120)
+            self.table.column(col, width=120, anchor="center")  # Center-align content
 
         self.table.bind("<Double-1>", self.show_full_description)  # Double-click to show full description
         self.update_table()
 
-    def update_table(self):
+    def update_table(self, filter_text=None, sort_column=None, sort_order="asc"):
         for row in self.table.get_children():
             self.table.delete(row)
-        for call in self.manager.calls:
+
+        # Filter calls based on search text
+        filtered_calls = self.manager.calls
+        if filter_text:
+            filtered_calls = [
+                call for call in self.manager.calls
+                if filter_text.lower() in call["CallID"].lower() or
+                filter_text.lower() in call["Caller"].lower() or
+                filter_text.lower() in call["Description"].lower()
+            ]
+
+        # Sort calls based on the selected column
+        if sort_column:
+            filtered_calls.sort(key=lambda x: x[sort_column], reverse=(sort_order == "desc"))
+
+        # Populate the table with filtered and sorted calls
+        for call in filtered_calls:
             resolved = call.get("ResolutionStatus", False)
             self.table.insert("", "end", values=(
                 call["CallID"],
@@ -435,6 +452,21 @@ class DispatchCallApp:
         self.log_area.insert(tk.END, f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
         self.log_area.config(state=tk.DISABLED)
         self.log_area.see(tk.END)  # Scroll to the bottom to show the latest message
+
+    def create_search_and_filter(self):
+        # Search bar
+        search_frame = ttk.Frame(self.root)
+        search_frame.grid(row=3, column=0, padx=10, pady=10, sticky="w")
+
+        ttk.Label(search_frame, text="Search:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
+        search_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        search_entry.bind("<KeyRelease>", self.on_search)
+
+    def on_search(self, event=None):
+        filter_text = self.search_var.get()
+        self.update_table(filter_text=filter_text)
 
 
 if __name__ == "__main__":

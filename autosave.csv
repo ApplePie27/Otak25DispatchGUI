@@ -1,2 +1,12 @@
 CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy
-DC250001,2025-03-01,22:36,,False,Social Media,Phone,CC23,H,P1,test,
+DC250001,2025-03-01,22:36,2025-03-01 22:48,True,Social Media,Phone,CC23,H,P1,test,James
+DC250002,2025-03-01,22:48,,False,Radio,Safety,,A,Green,,
+DC250003,2025-03-01,22:48,,False,Radio,Safety,,A,Green,,
+DC250004,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250005,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250006,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250007,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250008,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250009,2025-03-01,22:49,,False,Radio,Safety,,A,Green,,
+DC250010,2025-03-01,22:49,,False,Radio,Safety,test,A,Green,test,
+DC250011,2025-03-01,22:49,,False,Radio,Safety,test,A,Green,Fire,
