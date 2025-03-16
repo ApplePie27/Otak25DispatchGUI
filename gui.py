@@ -86,7 +86,8 @@ class DispatchCallApp:
                 self.update_status("Data saved successfully.")
             except Exception as e:
                 self.log(f"Failed to save data: {e}")
-                self.update_status("Failed to save data.")
+                self.update_status(f"Failed to save data: {e}")
+                messagebox.showerror("Error", f"Failed to save data: {e}")
 
     def load_data(self):
         """Load data from a file."""
@@ -103,7 +104,8 @@ class DispatchCallApp:
                     self.update_status("Failed to load data.")
             except Exception as e:
                 self.log(f"Error loading data: {e}")
-                self.update_status("Error loading data.")
+                self.update_status(f"Error loading data: {e}")
+                messagebox.showerror("Error", f"Error loading data: {e}")
 
     def show_user_guide(self):
         """Display a user guide in a new window."""
@@ -115,7 +117,8 @@ class DispatchCallApp:
                               "2. Resolve or modify existing calls.\n"
                               "3. Use the search bar to filter calls.\n"
                               "4. Save or load data using the File menu.\n"
-                              "5. Print a report of all calls.\n")
+                              "5. Print a report of all calls.\n"
+                              "6. Red Flag a call to mark it as an important situation.\n")
         guide_text.config(state=tk.DISABLED)
         guide_text.pack(padx=10, pady=10)
 
@@ -147,6 +150,7 @@ class DispatchCallApp:
             self.log("Autosave file not found. Starting with empty data.")
         except Exception as e:
             self.log(f"Error loading autosave: {e}")
+            messagebox.showerror("Error", f"Error loading autosave: {e}")
 
     def login(self):
         """Prompt the user to log in."""
@@ -195,10 +199,10 @@ class DispatchCallApp:
         # Resolution Checkbox and Resolver Name Entry
         ttk.Checkbutton(
             fields_frame,
-            text=" ",  # Removed "Mark"
+            text=" ",
             variable=self.resolution_status_var,
             command=self.toggle_resolver_entry
-        ).grid(row=6, column=0, padx=(5, 20), pady=5, sticky="w")  # Added padx=(5, 20) for spacing
+        ).grid(row=6, column=0, padx=(5, 20), pady=5, sticky="w")
 
         self.resolver_entry = ttk.Entry(fields_frame, textvariable=self.resolved_by_var, state=tk.DISABLED)
         self.resolver_entry.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
@@ -237,9 +241,10 @@ class DispatchCallApp:
         ttk.Button(buttons_frame, text="Add Call", command=self.add_call).grid(row=0, column=0, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Resolve Call", command=self.resolve_call).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Modify Call", command=self.modify_call).grid(row=0, column=2, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call).grid(row=0, column=4, padx=5, pady=5)  # Switched position
-        ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=3, padx=5, pady=5)  # Switched position
+        ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call).grid(row=0, column=4, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=3, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Print Report", command=self.print_report).grid(row=0, column=5, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Red Flag", command=self.red_flag_call).grid(row=0, column=6, padx=5, pady=5)
 
     def clear_input_fields(self):
         """Clear all input fields."""
@@ -257,7 +262,7 @@ class DispatchCallApp:
             columns=(
                 "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
                 "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy",
-                "CreatedBy", "ModifiedBy"
+                "CreatedBy", "ModifiedBy", "ReportNumber"
             ),
             show="headings"
         )
@@ -278,7 +283,8 @@ class DispatchCallApp:
             ("Description", "Description"),
             ("ResolvedBy", "Resolved By"),
             ("CreatedBy", "Created By"),
-            ("ModifiedBy", "Modified By")
+            ("ModifiedBy", "Modified By"),
+            ("ReportNumber", "Report Number")
         ]
         for col, heading in columns:
             self.table.heading(col, text=heading)
@@ -331,6 +337,7 @@ class DispatchCallApp:
         # Populate the table with filtered calls
         for call in filtered_calls:
             resolved = call.get("ResolutionStatus", False)
+            red_flag = call.get("RedFlag", False)
             self.table.insert("", "end", values=(
                 call["CallID"],
                 call["CallDate"],
@@ -345,11 +352,13 @@ class DispatchCallApp:
                 call["Description"],
                 call.get("ResolvedBy", ""),
                 call.get("CreatedBy", ""),
-                call.get("ModifiedBy", "")
-            ), tags=("resolved" if resolved else "unresolved"))
+                call.get("ModifiedBy", ""),
+                call.get("ReportNumber", "")  # Add ReportNumber to the table
+            ), tags=("resolved" if resolved else "unresolved", "redflag" if red_flag else ""))
 
-        # Change background color of resolved Call IDs
+        # Change background color of resolved and red-flagged calls
         self.table.tag_configure("resolved", background="light green")
+        self.table.tag_configure("redflag", background="light coral")
 
         # Scroll to the bottom of the table to show the latest entry
         if self.table.get_children():
@@ -489,6 +498,8 @@ class DispatchCallApp:
                     file.write(f"Caller: {call['Caller']}\n")
                     file.write(f"Description: {call['Description']}\n")
                     file.write(f"Status: {'Resolved' if call.get('ResolutionStatus') else 'Unresolved'}\n")
+                    file.write(f"Red Flag: {'Yes' if call.get('RedFlag') else 'No'}\n")
+                    file.write(f"Report Number: {call.get('ReportNumber', 'N/A')}\n")
                     file.write("=" * 50 + "\n")
             self.log(f"Report saved to {filename}")
             self.update_status("Report generated successfully.")
@@ -533,3 +544,13 @@ class DispatchCallApp:
         """Handle search functionality."""
         filter_text = self.search_var.get()
         self.update_table(filter_text=filter_text)
+
+    def red_flag_call(self):
+        """Mark the selected call as an important situation."""
+        selected = self.table.selection()
+        if selected:
+            call_id = self.table.item(selected[0], "values")[0]
+            self.manager.red_flag_call(call_id)
+            self.save_and_reload()
+            self.log(f"Call red-flagged: {call_id}")
+            self.update_status("Call marked as important situation.")

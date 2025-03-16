@@ -2,6 +2,7 @@ import json
 import csv
 from datetime import datetime
 import hashlib
+import random  # For generating random characters
 
 class DispatchCallManager:
     def __init__(self):
@@ -30,7 +31,29 @@ class DispatchCallManager:
         call["ResolvedBy"] = ""  # Initialize as empty
         call["CreatedBy"] = self.current_user  # Track who created the call
         call["ModifiedBy"] = ""  # Initialize ModifiedBy as empty
+        call["RedFlag"] = False  # Initialize RedFlag as False
+        call["ReportNumber"] = ""  # Initialize ReportNumber as empty
         self.calls.append(call)
+
+    def red_flag_call(self, call_id):
+        """Mark a call as an important situation and generate a shorter report number if one doesn't already exist."""
+        if not call_id:
+            raise ValueError("Call ID cannot be empty.")
+        
+        for call in self.calls:
+            if call["CallID"] == call_id:
+                if not call["ReportNumber"]:  # Only generate a report number if one doesn't exist
+                    call["RedFlag"] = True
+                    call["ReportNumber"] = self._generate_short_report_number()
+                    call["ModifiedBy"] = self.current_user  # Track who red-flagged the call
+                break
+
+    def _generate_short_report_number(self):
+        """Generate a shorter, unique report number (6 characters)."""
+        # Use a combination of timestamp and random characters
+        timestamp = datetime.now().strftime("%H%M%S")  # Hours, minutes, seconds
+        random_chars = ''.join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=3))  # 3 random characters
+        return f"{timestamp[:4]}{random_chars}"  # Combine to make 6 characters
 
     def resolve_call(self, call_id, resolved_by):
         """Resolve a call by marking it as resolved."""
@@ -81,7 +104,7 @@ class DispatchCallManager:
                     fieldnames = [
                         "CallID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
                         "InputMedium", "Source", "Caller", "Location", "Code", "Description", "ResolvedBy",
-                        "CreatedBy", "ModifiedBy"
+                        "CreatedBy", "ModifiedBy", "RedFlag", "ReportNumber"
                     ]
                     writer = csv.DictWriter(file, fieldnames=fieldnames)
                     writer.writeheader()
