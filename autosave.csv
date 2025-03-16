@@ -1,7 +1,0 @@
-CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy,CreatedBy,ModifiedBy
-DC250001,2025-03-01,22:54,,False,Radio,Safety,C1,A,Green,TREES,,,
-DC250002,2025-03-01,22:55,2025-03-01 22:55,True,Radio,General,C1,A,Orange,ORANGES,Jimmy,,
-DC250003,2025-03-01,22:55,,False,Radio,First Aid,C42,E,Red,APPLES,,,
-DC250004,2025-03-01,22:57,,False,Social Media,Discord,T56,M,Adam,"LOST KID
-description here",,,
-DC250005,2025-03-01,23:33,2025-03-01 23:34,True,Radio,Safety,test,A,Green,test,Henry,Roger,Robert
