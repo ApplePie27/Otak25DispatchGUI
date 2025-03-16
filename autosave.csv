@@ -1,0 +1,2 @@
+CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy,CreatedBy,ModifiedBy
+DC250001,2025-03-16,16:58,2025-03-16 16:58,True,Radio,Safety,Test,A,Green,test,tester,Doris,Doris

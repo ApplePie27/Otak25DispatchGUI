@@ -5,6 +5,7 @@ import hashlib
 
 class DispatchCallManager:
     def __init__(self):
+        """Initialize the DispatchCallManager with empty data structures."""
         self.calls = []
         self.undo_stack = []
         self.redo_stack = []
@@ -14,10 +15,15 @@ class DispatchCallManager:
 
     def set_user(self, username):
         """Set the current user."""
+        if not username:
+            raise ValueError("Username cannot be empty.")
         self.current_user = username
 
     def add_call(self, call):
         """Add a new call to the system."""
+        if not call or not isinstance(call, dict):
+            raise ValueError("Call must be a non-empty dictionary.")
+        
         call["CallID"] = f"DC25{self.report_counter:04d}"  # Format CallID as DC250001, DC250002, etc.
         self.report_counter += 1  # Increment the counter for the next call
         call["CallDate"] = datetime.now().strftime("%Y-%m-%d")  # Date only
@@ -31,6 +37,9 @@ class DispatchCallManager:
 
     def resolve_call(self, call_id, resolved_by):
         """Resolve a call by marking it as resolved."""
+        if not call_id or not resolved_by:
+            raise ValueError("Call ID and resolved_by cannot be empty.")
+        
         for call in self.calls:
             if call["CallID"] == call_id:
                 call["ResolutionStatus"] = True
@@ -42,6 +51,9 @@ class DispatchCallManager:
 
     def modify_call(self, call_id, updated_call):
         """Modify an existing call."""
+        if not call_id or not updated_call or not isinstance(updated_call, dict):
+            raise ValueError("Call ID and updated_call must be valid.")
+        
         for call in self.calls:
             if call["CallID"] == call_id:
                 self.undo_stack.append(("modify", call.copy()))
@@ -94,6 +106,9 @@ class DispatchCallManager:
 
     def save_to_file(self, filename, filetype="txt"):
         """Save calls to a file."""
+        if not filename:
+            raise ValueError("Filename cannot be empty.")
+        
         try:
             if filetype == "txt":
                 with open(filename, "w") as file:
@@ -115,6 +130,9 @@ class DispatchCallManager:
 
     def load_from_file(self, filename, filetype="txt"):
         """Load calls from a file."""
+        if not filename:
+            raise ValueError("Filename cannot be empty.")
+        
         try:
             self.calls = []
             if filetype == "txt":
@@ -130,8 +148,7 @@ class DispatchCallManager:
             self._update_report_counter()
             return True
         except FileNotFoundError:
-            # If the file doesn't exist, return False
-            return False
+            return False  # File does not exist
         except Exception as e:
             raise Exception(f"Error loading file: {e}")
 

@@ -8,6 +8,10 @@ class DispatchCallApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Dispatch Call Management System")
+
+        # Allow the window to be resized
+        self.root.resizable(True, True)
+
         self.manager = DispatchCallManager()
         self.last_loaded_hash = None
 
@@ -34,8 +38,24 @@ class DispatchCallApp:
         self.create_buttons()
         self.create_search_bar()
 
+        # Keyboard shortcuts
+        self.root.bind("<Control-s>", lambda event: self.save_data())
+        self.root.bind("<Control-l>", lambda event: self.load_data())
+        self.root.bind("<Control-z>", lambda event: self.manager.undo())
+        self.root.bind("<Control-y>", lambda event: self.manager.redo())
+
+        # Configure grid weights for resizing
+        self.configure_grid_weights()
+
         # Start the data reload loop every 125 ms
         self.root.after(125, self.reload_data_loop)
+
+    def configure_grid_weights(self):
+        """Configure grid weights to make the UI resizable."""
+        # Make the table and log area expand with the window
+        self.root.grid_rowconfigure(2, weight=1)  # Table row
+        self.root.grid_rowconfigure(4, weight=1)  # Log area row
+        self.root.grid_columnconfigure(0, weight=1)  # Single column
 
     def load_autosave(self):
         """Load data from the autosave file. If the file doesn't exist, initialize an empty dataset."""
@@ -67,38 +87,37 @@ class DispatchCallApp:
     def create_input_fields(self):
         """Create input fields for new dispatch calls."""
         fields_frame = ttk.LabelFrame(self.root, text="New Dispatch Call")
-        fields_frame.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        fields_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
         # Input Medium dropdown
         ttk.Label(fields_frame, text="Input Medium:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         input_medium_options = ["Radio", "Social Media"]
         input_medium_dropdown = ttk.Combobox(fields_frame, textvariable=self.input_medium_var, values=input_medium_options)
-        input_medium_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-        input_medium_dropdown.bind("<<ComboboxSelected>>", self.update_source_and_location_options)
+        input_medium_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         # Source dropdown
         ttk.Label(fields_frame, text="Source:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
         self.source_dropdown = ttk.Combobox(fields_frame, textvariable=self.source_var)
-        self.source_dropdown.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        self.source_dropdown.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
 
         # Caller entry
         ttk.Label(fields_frame, text="Caller:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        ttk.Entry(fields_frame, textvariable=self.caller_var).grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        ttk.Entry(fields_frame, textvariable=self.caller_var).grid(row=2, column=1, padx=5, pady=5, sticky="ew")
 
         # Location dropdown
         ttk.Label(fields_frame, text="Location:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
         self.location_dropdown = ttk.Combobox(fields_frame, textvariable=self.location_var)
-        self.location_dropdown.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        self.location_dropdown.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
 
         # Code dropdown
         ttk.Label(fields_frame, text="Code:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
         code_options = ["Green", "Orange", "Red", "Purple", "Silver", "Adam", "Blue", "Yellow", "P1", "P2", "P3"]
-        ttk.Combobox(fields_frame, textvariable=self.code_var, values=code_options).grid(row=4, column=1, padx=5, pady=5, sticky="w")
+        ttk.Combobox(fields_frame, textvariable=self.code_var, values=code_options).grid(row=4, column=1, padx=5, pady=5, sticky="ew")
 
         # Description text area
         ttk.Label(fields_frame, text="Description:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
         self.description_entry = scrolledtext.ScrolledText(fields_frame, width=40, height=5)
-        self.description_entry.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+        self.description_entry.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
 
         # Initialize source and location options based on default input medium
         self.update_source_and_location_options()
@@ -120,7 +139,7 @@ class DispatchCallApp:
     def create_buttons(self):
         """Create buttons for managing calls."""
         buttons_frame = ttk.Frame(self.root)
-        buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
         ttk.Button(buttons_frame, text="Add Call", command=self.add_call).grid(row=0, column=0, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Resolve Call", command=self.resolve_call).grid(row=0, column=1, padx=5, pady=5)
@@ -334,7 +353,7 @@ class DispatchCallApp:
     def create_search_bar(self):
         """Create the search bar."""
         search_frame = ttk.Frame(self.root)
-        search_frame.grid(row=3, column=0, padx=10, pady=10, sticky="w")
+        search_frame.grid(row=3, column=0, padx=10, pady=10, sticky="ew")
 
         self.search_label_click_count = 0
 
@@ -344,7 +363,7 @@ class DispatchCallApp:
 
         self.search_var = tk.StringVar()
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
-        search_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        search_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         search_entry.bind("<KeyRelease>", self.on_search)
 
     def on_search_label_click(self, event):

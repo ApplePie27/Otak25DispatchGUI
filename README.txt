@@ -9,6 +9,8 @@ This is a Python-based application for managing dispatch calls. It allows users 
 - Undo and redo actions.
 - Save and load data in `.txt` and `.csv` formats.
 - Autosave functionality to `autosave.txt` and `autosave.csv`.
+- Dark mode support.
+- Keyboard shortcuts for common actions.
 
 ## How to Run
 1. Install Python 3.x.
@@ -18,14 +20,3 @@ This is a Python-based application for managing dispatch calls. It allows users 
 Run the unit tests using:
 ```bash
 python -m unittest tests/test_dispatch_call_manager.py
-
----
-
-### Summary:
-- **Modularization**: The code is now split into multiple files for better organization.
-- **Error Handling**: Improved error handling with user-friendly messages.
-- **Documentation**: Added docstrings and a `README.md` file.
-- **Testing**: Added unit tests for the `DispatchCallManager` class.
-- **Performance**: Optimized file handling and reload logic.
-
-This structure makes the codebase easier to maintain, test, and extend.

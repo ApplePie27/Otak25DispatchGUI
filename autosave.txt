@@ -1,0 +1,1 @@
+{"InputMedium": "Radio", "Source": "Safety", "Caller": "Test", "Location": "A", "Code": "Green", "Description": "test", "ResolutionStatus": true, "CallID": "DC250001", "CallDate": "2025-03-16", "CallTime": "16:58", "ResolutionTimestamp": "2025-03-16 16:58", "ResolvedBy": "tester", "CreatedBy": "Doris", "ModifiedBy": "Doris"}
