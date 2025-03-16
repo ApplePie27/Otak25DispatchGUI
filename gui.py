@@ -34,15 +34,11 @@ class DispatchCallApp:
         self.description_var = tk.StringVar()
 
         # GUI Layout
+        self.create_menu_bar()
         self.create_input_fields()
         self.create_buttons()
         self.create_search_bar()
-
-        # Keyboard shortcuts
-        self.root.bind("<Control-s>", lambda event: self.save_data())
-        self.root.bind("<Control-l>", lambda event: self.load_data())
-        self.root.bind("<Control-z>", lambda event: self.manager.undo())
-        self.root.bind("<Control-y>", lambda event: self.manager.redo())
+        self.create_status_bar()
 
         # Configure grid weights for resizing
         self.configure_grid_weights()
@@ -56,6 +52,105 @@ class DispatchCallApp:
         self.root.grid_rowconfigure(2, weight=1)  # Table row
         self.root.grid_rowconfigure(4, weight=1)  # Log area row
         self.root.grid_columnconfigure(0, weight=1)  # Single column
+
+    def create_menu_bar(self):
+        """Create a menu bar for the application."""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Save", command=self.save_data)
+        file_menu.add_command(label="Load", command=self.load_data)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        menubar.add_cascade(label="File", menu=file_menu)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="User Guide", command=self.show_user_guide)
+        menubar.add_cascade(label="Help", menu=help_menu)
+
+    def save_data(self):
+        """Save data to a file."""
+        filename = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
+        if filename:
+            filetype = "txt" if filename.endswith(".txt") else "csv"
+            try:
+                self.manager.save_to_file(filename, filetype)
+                self.log(f"Data saved to {filename}")
+                self.update_status("Data saved successfully.")
+            except Exception as e:
+                self.log(f"Failed to save data: {e}")
+                self.update_status("Failed to save data.")
+
+    def load_data(self):
+        """Load data from a file."""
+        filename = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
+        if filename:
+            filetype = "txt" if filename.endswith(".txt") else "csv"
+            try:
+                if self.manager.load_from_file(filename, filetype):
+                    self.update_table()
+                    self.log(f"Data loaded from {filename}")
+                    self.update_status("Data loaded successfully.")
+                else:
+                    self.log(f"Failed to load data from {filename}")
+                    self.update_status("Failed to load data.")
+            except Exception as e:
+                self.log(f"Error loading data: {e}")
+                self.update_status("Error loading data.")
+
+    def show_user_guide(self):
+        """Display a user guide in a new window."""
+        guide_window = tk.Toplevel(self.root)
+        guide_window.title("User Guide")
+    
+        # Create a scrolled text area for the guide
+        guide_text = scrolledtext.ScrolledText(guide_window, width=80, height=20)
+        guide_text.pack(padx=10, pady=10)
+
+        # Add the user guide content
+        guide_content = """
+    Dispatch Call Management System User Guide
+
+    Add a New Call:
+    1. Fill in the input fields (Caller, Description, etc.).
+    2. Click "Add Call" to save the call.
+
+    Resolve a Call:
+    1. Select a call from the table.
+    2. Click "Resolve Call" and enter the name of the resolver.
+
+    Modify a Call:
+    1. Select a call from the table.
+    2. Update the input fields.
+    3. Click "Modify Call".
+
+    Delete a Call:
+    1. Select a call from the table.
+    2. Click "Delete Call".
+
+    Filter Calls:
+    1. Use the search bar to filter by Call ID, Caller, or Description.
+
+    Print a Report:
+    1. Click "Print Report" to generate a report of all calls.
+    """
+        guide_text.insert(tk.END, guide_content)
+        guide_text.config(state=tk.DISABLED)  # Make the text area read-only
+        guide_text.pack(padx=10, pady=10)
+
+    def create_status_bar(self):
+        """Create a status bar at the bottom of the window."""
+        self.status_var = tk.StringVar()
+        self.status_var.set("Ready")
+        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.grid(row=5, column=0, sticky="ew")
+
+    def update_status(self, message):
+        """Update the status bar with a message."""
+        self.status_var.set(message)
 
     def load_autosave(self):
         """Load data from the autosave file. If the file doesn't exist, initialize an empty dataset."""
@@ -144,10 +239,15 @@ class DispatchCallApp:
         ttk.Button(buttons_frame, text="Add Call", command=self.add_call).grid(row=0, column=0, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Resolve Call", command=self.resolve_call).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Modify Call", command=self.modify_call).grid(row=0, column=2, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Undo", command=self.manager.undo).grid(row=0, column=3, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Redo", command=self.manager.redo).grid(row=0, column=4, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Save", command=self.save_data).grid(row=0, column=5, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Load", command=self.load_data).grid(row=0, column=6, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call).grid(row=0, column=3, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=4, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Print Report", command=self.print_report).grid(row=0, column=5, padx=5, pady=5)
+
+    def clear_input_fields(self):
+        """Clear all input fields."""
+        self.caller_var.set("")
+        self.description_entry.delete("1.0", tk.END)
+        self.update_status("Input fields cleared.")
 
     def create_table(self):
         """Create the table to display calls."""
@@ -277,18 +377,29 @@ class DispatchCallApp:
 
     def add_call(self):
         """Add a new call."""
+        caller = self.caller_var.get().strip()
+        description = self.description_entry.get("1.0", tk.END).strip()
+
+        if not caller:
+            messagebox.showwarning("Input Error", "Caller field cannot be empty.")
+            return
+        if not description:
+            messagebox.showwarning("Input Error", "Description field cannot be empty.")
+            return
+
         call = {
             "InputMedium": self.input_medium_var.get(),
             "Source": self.source_var.get(),
-            "Caller": self.caller_var.get(),
+            "Caller": caller,
             "Location": self.location_var.get(),
             "Code": self.code_var.get(),
-            "Description": self.description_entry.get("1.0", tk.END).strip(),
+            "Description": description,
             "ResolutionStatus": False
         }
         self.manager.add_call(call)
         self.save_and_reload()
         self.log(f"Call added: {call['CallID']}")
+        self.update_status("Call added successfully.")
 
     def resolve_call(self):
         """Resolve a call."""
@@ -300,6 +411,7 @@ class DispatchCallApp:
                 self.manager.resolve_call(call_id, resolved_by)
                 self.save_and_reload()
                 self.log(f"Call resolved: {call_id} by {resolved_by}")
+                self.update_status("Call resolved successfully.")
 
     def modify_call(self):
         """Modify an existing call."""
@@ -317,25 +429,33 @@ class DispatchCallApp:
             self.manager.modify_call(call_id, updated_call)
             self.save_and_reload()
             self.log(f"Call modified: {call_id}")
+            self.update_status("Call modified successfully.")
 
-    def save_data(self):
-        """Save data to a file."""
-        filename = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
-        if filename:
-            filetype = "txt" if filename.endswith(".txt") else "csv"
-            self.manager.save_to_file(filename, filetype)
-            self.log(f"Data saved to {filename}")
+    def delete_call(self):
+        """Delete the selected call."""
+        selected = self.table.selection()
+        if selected:
+            call_id = self.table.item(selected[0], "values")[0]
+            self.manager.delete_call(call_id)
+            self.save_and_reload()
+            self.log(f"Call deleted: {call_id}")
+            self.update_status("Call deleted successfully.")
 
-    def load_data(self):
-        """Load data from a file."""
-        filename = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
+    def print_report(self):
+        """Generate and print a report of all calls."""
+        filename = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt")])
         if filename:
-            filetype = "txt" if filename.endswith(".txt") else "csv"
-            if self.manager.load_from_file(filename, filetype):
-                self.update_table()
-                self.log(f"Data loaded from {filename}")
-            else:
-                self.log(f"Failed to load data from {filename}")
+            with open(filename, "w") as file:
+                file.write("Dispatch Call Report\n")
+                file.write("=" * 50 + "\n")
+                for call in self.manager.calls:
+                    file.write(f"Call ID: {call['CallID']}\n")
+                    file.write(f"Caller: {call['Caller']}\n")
+                    file.write(f"Description: {call['Description']}\n")
+                    file.write(f"Status: {'Resolved' if call.get('ResolutionStatus') else 'Unresolved'}\n")
+                    file.write("=" * 50 + "\n")
+            self.log(f"Report saved to {filename}")
+            self.update_status("Report generated successfully.")
 
     def create_log_area(self):
         """Create the log area for system messages."""

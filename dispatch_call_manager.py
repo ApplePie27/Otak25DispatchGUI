@@ -7,8 +7,6 @@ class DispatchCallManager:
     def __init__(self):
         """Initialize the DispatchCallManager with empty data structures."""
         self.calls = []
-        self.undo_stack = []
-        self.redo_stack = []
         self.report_counter = 1  # Initialize the counter
         self.current_user = None  # Track the current user
         self.last_saved_hash = None  # Track the last saved state
@@ -33,7 +31,6 @@ class DispatchCallManager:
         call["CreatedBy"] = self.current_user  # Track who created the call
         call["ModifiedBy"] = ""  # Initialize ModifiedBy as empty
         self.calls.append(call)
-        self.undo_stack.append(("add", call))
 
     def resolve_call(self, call_id, resolved_by):
         """Resolve a call by marking it as resolved."""
@@ -46,7 +43,6 @@ class DispatchCallManager:
                 call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 call["ResolvedBy"] = resolved_by
                 call["ModifiedBy"] = self.current_user  # Track who resolved the call
-                self.undo_stack.append(("resolve", call))
                 break
 
     def modify_call(self, call_id, updated_call):
@@ -56,53 +52,19 @@ class DispatchCallManager:
         
         for call in self.calls:
             if call["CallID"] == call_id:
-                self.undo_stack.append(("modify", call.copy()))
                 call.update(updated_call)
                 call["ModifiedBy"] = self.current_user  # Track who modified the call
                 break
 
-    def undo(self):
-        """Undo the last action."""
-        if not self.undo_stack:
-            return
-        action, call = self.undo_stack.pop()
-        if action == "add":
-            self.calls.remove(call)
-            self.redo_stack.append(("add", call))
-        elif action == "resolve":
-            call["ResolutionStatus"] = False
-            call["ResolutionTimestamp"] = ""
-            call["ResolvedBy"] = ""
-            call["ModifiedBy"] = self.current_user  # Track who undid the resolution
-            self.redo_stack.append(("resolve", call))
-        elif action == "modify":
-            for c in self.calls:
-                if c["CallID"] == call["CallID"]:
-                    self.redo_stack.append(("modify", c.copy()))
-                    c.update(call)
-                    c["ModifiedBy"] = self.current_user  # Track who undid the modification
-                    break
-
-    def redo(self):
-        """Redo the last undone action."""
-        if not self.redo_stack:
-            return
-        action, call = self.redo_stack.pop()
-        if action == "add":
-            self.calls.append(call)
-            self.undo_stack.append(("add", call))
-        elif action == "resolve":
-            call["ResolutionStatus"] = True
-            call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            call["ModifiedBy"] = self.current_user  # Track who redid the resolution
-            self.undo_stack.append(("resolve", call))
-        elif action == "modify":
-            for c in self.calls:
-                if c["CallID"] == call["CallID"]:
-                    self.undo_stack.append(("modify", c.copy()))
-                    c.update(call)
-                    c["ModifiedBy"] = self.current_user  # Track who redid the modification
-                    break
+    def delete_call(self, call_id):
+        """Delete a call from the system."""
+        if not call_id:
+            raise ValueError("Call ID cannot be empty.")
+        
+        for call in self.calls:
+            if call["CallID"] == call_id:
+                self.calls.remove(call)
+                break
 
     def save_to_file(self, filename, filetype="txt"):
         """Save calls to a file."""
