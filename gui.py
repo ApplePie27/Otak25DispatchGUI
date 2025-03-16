@@ -33,6 +33,10 @@ class DispatchCallApp:
         self.code_var = tk.StringVar(value="Green")
         self.description_var = tk.StringVar()
 
+        # Resolution Fields
+        self.resolution_status_var = tk.BooleanVar(value=False)  # Checkbox for resolution status
+        self.resolved_by_var = tk.StringVar()  # Text box for resolver's name
+
         # GUI Layout
         self.create_menu_bar()
         self.create_input_fields()
@@ -105,40 +109,14 @@ class DispatchCallApp:
         """Display a user guide in a new window."""
         guide_window = tk.Toplevel(self.root)
         guide_window.title("User Guide")
-    
-        # Create a scrolled text area for the guide
         guide_text = scrolledtext.ScrolledText(guide_window, width=80, height=20)
-        guide_text.pack(padx=10, pady=10)
-
-        # Add the user guide content
-        guide_content = """
-    Dispatch Call Management System User Guide
-
-    Add a New Call:
-    1. Fill in the input fields (Caller, Description, etc.).
-    2. Click "Add Call" to save the call.
-
-    Resolve a Call:
-    1. Select a call from the table.
-    2. Click "Resolve Call" and enter the name of the resolver.
-
-    Modify a Call:
-    1. Select a call from the table.
-    2. Update the input fields.
-    3. Click "Modify Call".
-
-    Delete a Call:
-    1. Select a call from the table.
-    2. Click "Delete Call".
-
-    Filter Calls:
-    1. Use the search bar to filter by Call ID, Caller, or Description.
-
-    Print a Report:
-    1. Click "Print Report" to generate a report of all calls.
-    """
-        guide_text.insert(tk.END, guide_content)
-        guide_text.config(state=tk.DISABLED)  # Make the text area read-only
+        guide_text.insert(tk.END, "Dispatch Call Management System User Guide\n\n"
+                              "1. Add a new call using the input fields.\n"
+                              "2. Resolve or modify existing calls.\n"
+                              "3. Use the search bar to filter calls.\n"
+                              "4. Save or load data using the File menu.\n"
+                              "5. Print a report of all calls.\n")
+        guide_text.config(state=tk.DISABLED)
         guide_text.pack(padx=10, pady=10)
 
     def create_status_bar(self):
@@ -214,8 +192,28 @@ class DispatchCallApp:
         self.description_entry = scrolledtext.ScrolledText(fields_frame, width=40, height=5)
         self.description_entry.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
 
+        # Resolution Checkbox and Resolver Name Entry
+        ttk.Checkbutton(
+            fields_frame,
+            text=" ",  # Removed "Mark"
+            variable=self.resolution_status_var,
+            command=self.toggle_resolver_entry
+        ).grid(row=6, column=0, padx=(5, 20), pady=5, sticky="w")  # Added padx=(5, 20) for spacing
+
+        self.resolver_entry = ttk.Entry(fields_frame, textvariable=self.resolved_by_var, state=tk.DISABLED)
+        self.resolver_entry.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(fields_frame, text="Resolved By:").grid(row=6, column=0, padx=0, pady=5, sticky="e")
+
         # Initialize source and location options based on default input medium
         self.update_source_and_location_options()
+
+    def toggle_resolver_entry(self):
+        """Enable or disable the resolver entry based on the checkbox state."""
+        if self.resolution_status_var.get():
+            self.resolver_entry.config(state=tk.NORMAL)
+        else:
+            self.resolver_entry.config(state=tk.DISABLED)
+            self.resolved_by_var.set("")  # Clear the resolver's name when unchecked
 
     def update_source_and_location_options(self, event=None):
         """Update source and location options based on the selected input medium."""
@@ -239,14 +237,17 @@ class DispatchCallApp:
         ttk.Button(buttons_frame, text="Add Call", command=self.add_call).grid(row=0, column=0, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Resolve Call", command=self.resolve_call).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Modify Call", command=self.modify_call).grid(row=0, column=2, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call).grid(row=0, column=3, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=4, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call).grid(row=0, column=4, padx=5, pady=5)  # Switched position
+        ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=3, padx=5, pady=5)  # Switched position
         ttk.Button(buttons_frame, text="Print Report", command=self.print_report).grid(row=0, column=5, padx=5, pady=5)
 
     def clear_input_fields(self):
         """Clear all input fields."""
         self.caller_var.set("")
         self.description_entry.delete("1.0", tk.END)
+        self.resolution_status_var.set(False)
+        self.resolved_by_var.set("")
+        self.resolver_entry.config(state=tk.DISABLED)
         self.update_status("Input fields cleared.")
 
     def create_table(self):
@@ -286,8 +287,31 @@ class DispatchCallApp:
             else:
                 self.table.column(col, width=120, anchor="center")
 
-        self.table.bind("<Double-1>", self.show_full_description)
+        # Bind the table selection event to load call details
+        self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
         self.update_table()
+
+    def load_selected_call(self, event):
+        """Load the selected call's details into the input fields."""
+        selected = self.table.selection()
+        if selected:
+            call_id = self.table.item(selected[0], "values")[0]
+            for call in self.manager.calls:
+                if call["CallID"] == call_id:
+                    # Load call details into input fields
+                    self.input_medium_var.set(call.get("InputMedium", ""))
+                    self.source_var.set(call.get("Source", ""))
+                    self.caller_var.set(call.get("Caller", ""))
+                    self.location_var.set(call.get("Location", ""))
+                    self.code_var.set(call.get("Code", ""))
+                    self.description_entry.delete("1.0", tk.END)
+                    self.description_entry.insert(tk.END, call.get("Description", ""))
+
+                    # Load resolution status and resolver's name
+                    self.resolution_status_var.set(call.get("ResolutionStatus", False))
+                    self.resolved_by_var.set(call.get("ResolvedBy", ""))
+                    self.toggle_resolver_entry()  # Enable/disable resolver entry based on checkbox
+                    break
 
     def update_table(self, filter_text=None):
         """Update the table with the latest calls."""
@@ -394,7 +418,8 @@ class DispatchCallApp:
             "Location": self.location_var.get(),
             "Code": self.code_var.get(),
             "Description": description,
-            "ResolutionStatus": False
+            "ResolutionStatus": self.resolution_status_var.get(),
+            "ResolvedBy": self.resolved_by_var.get() if self.resolution_status_var.get() else ""
         }
         self.manager.add_call(call)
         self.save_and_reload()
@@ -424,7 +449,9 @@ class DispatchCallApp:
                 "Caller": self.caller_var.get(),
                 "Location": self.location_var.get(),
                 "Code": self.code_var.get(),
-                "Description": self.description_entry.get("1.0", tk.END).strip()
+                "Description": self.description_entry.get("1.0", tk.END).strip(),
+                "ResolutionStatus": self.resolution_status_var.get(),
+                "ResolvedBy": self.resolved_by_var.get() if self.resolution_status_var.get() else ""
             }
             self.manager.modify_call(call_id, updated_call)
             self.save_and_reload()
@@ -432,14 +459,23 @@ class DispatchCallApp:
             self.update_status("Call modified successfully.")
 
     def delete_call(self):
-        """Delete the selected call."""
+        """Delete the selected call after confirmation."""
         selected = self.table.selection()
         if selected:
             call_id = self.table.item(selected[0], "values")[0]
-            self.manager.delete_call(call_id)
-            self.save_and_reload()
-            self.log(f"Call deleted: {call_id}")
-            self.update_status("Call deleted successfully.")
+            
+            # Show confirmation dialog
+            confirm = messagebox.askyesno(
+                "Confirm Deletion",
+                f"Are you sure you want to delete call {call_id}?"
+            )
+            
+            # If the user confirms, delete the call
+            if confirm:
+                self.manager.delete_call(call_id)
+                self.save_and_reload()
+                self.log(f"Call deleted: {call_id}")
+                self.update_status("Call deleted successfully.")
 
     def print_report(self):
         """Generate and print a report of all calls."""

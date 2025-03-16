@@ -1,3 +1,1 @@
 CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy,CreatedBy,ModifiedBy
-DC250001,2025-03-16,17:52,,False,Radio,Safety,test1,A,Green,test,,DOris,
-DC250002,2025-03-16,17:52,2025-03-16 17:52,True,Radio,Safety,,A,Green,,terteqw,DOris,DOris
