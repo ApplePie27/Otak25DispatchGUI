@@ -54,14 +54,16 @@ Deleting a Call
 2. Click "Delete Call" and confirm the deletion in the dialog box.
 3. The call will be removed from the table.
 
-Filtering Calls
-1. Use the search bar to filter calls by Call ID, Caller, or Description.
-2. Use the "Filter by Status" dropdown to show only resolved or unresolved calls.
-
 Printing a Report
 1. Click "Print Report".
 2. Choose a location to save the report.
 3. The report will be generated and saved as a .txt file.
+
+Red Flagging a Call
+1. Select a call from the table.
+2. Click 'Red Flag' to mark the call as important.
+3. Red-flagged calls will be highlighted in the table for easy identification.
+4. To remove the red flag, select the call and click 'Red Flag' again.
 
 Saving and Loading Data
 - Save Data: Click "Save" in the File menu to save data to a .txt or .csv file.

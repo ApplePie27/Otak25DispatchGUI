@@ -111,14 +111,35 @@ class DispatchCallApp:
         """Display a user guide in a new window."""
         guide_window = tk.Toplevel(self.root)
         guide_window.title("User Guide")
-        guide_text = scrolledtext.ScrolledText(guide_window, width=80, height=20)
+        guide_text = scrolledtext.ScrolledText(guide_window, width=80, height=25)
         guide_text.insert(tk.END, "Dispatch Call Management System User Guide\n\n"
-                              "1. Add a new call using the input fields.\n"
-                              "2. Resolve or modify existing calls.\n"
-                              "3. Use the search bar to filter calls.\n"
-                              "4. Save or load data using the File menu.\n"
-                              "5. Print a report of all calls.\n"
-                              "6. Red Flag a call to mark it as an important situation.\n")
+                              "Adding a New Call\n"
+                              " 1. Fill in the input fields (Caller, Description, etc.).\n"
+                              " 2. Click 'Add Call' to save the call. The call will appear in the table.\n\n"
+                              "Resolving a Call\n"
+                              " 1. Select a call from the table.\n"
+                              " 2. Click 'Resolve Call' and enter the name of the resolver.\n"
+                              " 3. The call will be marked as resolved in the table.\n\n"
+                              "Modifying a Call\n"
+                              " 1. Select a call from the table.\n"
+                              " 2. Update the input fields with new details.\n"
+                              " 3. Click 'Modify Call' to update the call in the table.\n\n"
+                              "Deleting a Call\n"
+                              " 1. Select a call from the table.\n"
+                              " 2. Click 'Delete Call' and confirm the deletion in the dialog box.\n"
+                              " 3. The call will be removed from the table.\n\n"
+                              "Printing a Report\n"
+                              " 1. Click 'Print Report'.\n"
+                              " 2. Choose a location to save the report.\n"
+                              " 3. The report will be generated and saved as a .txt file.\n\n"
+                              "Saving and Loading Data\n"
+                              " - Save Data: Click 'Save' in the File menu to save data.\n"
+                              " - Load Data: Click 'Load' in the File menu to load data from file.\n\n"
+                              "Red Flagging a Call\n"
+                              " 1. Select a call from the table.\n"
+                              " 2. Click 'Red Flag' to mark the call as important.\n"
+                              " 3. Red-flagged calls will be highlighted in the table for easy identification.\n"
+                              " 4. To remove the red flag, select the call and click 'Red Flag' again.\n\n")
         guide_text.config(state=tk.DISABLED)
         guide_text.pack(padx=10, pady=10)
 
@@ -546,11 +567,11 @@ class DispatchCallApp:
         self.update_table(filter_text=filter_text)
 
     def red_flag_call(self):
-        """Mark the selected call as an important situation."""
+        """Toggle the red flag status of the selected call."""
         selected = self.table.selection()
         if selected:
             call_id = self.table.item(selected[0], "values")[0]
             self.manager.red_flag_call(call_id)
             self.save_and_reload()
-            self.log(f"Call red-flagged: {call_id}")
-            self.update_status("Call marked as important situation.")
+            self.log(f"Call red-flag toggled: {call_id}")
+            self.update_status("Call red-flag status updated.")

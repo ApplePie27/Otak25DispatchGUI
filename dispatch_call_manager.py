@@ -36,16 +36,21 @@ class DispatchCallManager:
         self.calls.append(call)
 
     def red_flag_call(self, call_id):
-        """Mark a call as an important situation and generate a shorter report number if one doesn't already exist."""
+        """Toggle the red flag status of a call."""
         if not call_id:
             raise ValueError("Call ID cannot be empty.")
-        
+    
         for call in self.calls:
             if call["CallID"] == call_id:
-                if not call["ReportNumber"]:  # Only generate a report number if one doesn't exist
+                if call["RedFlag"]:
+                    # If already red-flagged, remove the red flag and report number
+                    call["RedFlag"] = False
+                    call["ReportNumber"] = ""
+                else:
+                    # If not red-flagged, add the red flag and generate a report number
                     call["RedFlag"] = True
                     call["ReportNumber"] = self._generate_short_report_number()
-                    call["ModifiedBy"] = self.current_user  # Track who red-flagged the call
+                call["ModifiedBy"] = self.current_user  # Track who modified the call
                 break
 
     def _generate_short_report_number(self):

@@ -36,7 +36,7 @@ class TestDispatchCallManager(unittest.TestCase):
         self.assertTrue(self.manager.calls[0]["ResolutionStatus"])
         self.assertEqual(self.manager.calls[0]["ResolvedBy"], "resolved_by_user")
 
-        def test_red_flag_call(self):
+    def test_red_flag_call(self):
         call = {
             "InputMedium": "Radio",
             "Source": "Safety",
@@ -57,6 +57,34 @@ class TestDispatchCallManager(unittest.TestCase):
         # Red-flag the call again (should not overwrite the report number)
         self.manager.red_flag_call("DC250001")
         self.assertEqual(self.manager.calls[0]["ReportNumber"], report_number)  # Report number should remain the same
+    
+    def test_red_flag_call_toggle(self):
+        call = {
+            "InputMedium": "Radio",
+            "Source": "Safety",
+            "Caller": "John Doe",
+            "Location": "A",
+            "Code": "Green",
+            "Description": "Test call",
+            "ResolutionStatus": False
+        }
+        self.manager.add_call(call)
+    
+        # Red-flag the call for the first time
+        self.manager.red_flag_call("DC250001")
+        self.assertTrue(self.manager.calls[0]["RedFlag"])
+        report_number = self.manager.calls[0]["ReportNumber"]
+        self.assertEqual(len(report_number), 6)  # Ensure report number is 6 characters
+
+        # Remove the red flag
+        self.manager.red_flag_call("DC250001")
+        self.assertFalse(self.manager.calls[0]["RedFlag"])
+        self.assertEqual(self.manager.calls[0]["ReportNumber"], "")  # Report number should be cleared
+
+        # Red-flag the call again
+        self.manager.red_flag_call("DC250001")
+        self.assertTrue(self.manager.calls[0]["RedFlag"])
+        self.assertEqual(len(self.manager.calls[0]["ReportNumber"]), 6)  # New report number should be generated
 
 if __name__ == "__main__":
     unittest.main()
