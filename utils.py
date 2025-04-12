@@ -7,4 +7,4 @@ def calculate_file_hash(filename):
             file_content = file.read()
             return hashlib.md5(file_content).hexdigest()
     except FileNotFoundError:
-        return None  # File does not exist
+        return None
