@@ -1,36 +1,43 @@
 Dispatch Call Management System
+==============================
 
 Overview
-The Dispatch Call Management System is a Python-based application designed to help users efficiently manage dispatch calls. It provides a user-friendly interface for adding, resolving, modifying, and deleting calls, as well as saving and loading data in .txt or .csv formats. The system includes features such as autosaving, logging, a search bar, and the ability to filter calls by status.
+--------
+The Dispatch Call Management System is a Python-based application for tracking and managing dispatch calls. It features a user-friendly GUI for adding, modifying, resolving, and reporting on calls with automatic data persistence.
 
-Features
-- Add New Calls: Add calls with details like Call ID, Call Date, Call Time, Input Medium, Source, Caller, Location, Code, and Description.
-- Resolve Calls: Mark calls as resolved and specify who resolved them.
-- Modify Calls: Update existing call details.
-- Delete Calls: Remove calls from the system.
-- Save and Load Data: Save data to .txt or .csv files and load it back.
-- Autosave: Automatically save data to autosave.txt and autosave.csv.
-- Search Bar: Filter calls by Call ID, Caller, or Description.
-- Filter by Status: Show only resolved or unresolved calls.
-- Print Report: Generate a report of all calls.
+Key Features
+------------
+- Complete call management (add/modify/resolve/delete)
+- Dual-format autosaving (TXT and CSV)
+- Automated backup system (keeps last 10 versions)
+- Comprehensive search and filtering
+- Detailed reporting capabilities
+- User activity logging
+- Red-flag important calls
 
 System Requirements
-- Operating System: Windows, macOS, or Linux.
-- Python Version: Python 3.x.
-- Dependencies: Tkinter (included with Python), csv, json, hashlib, datetime.
+-------------------
+- OS: Windows 10+, macOS 10.15+, or Linux
+- Python: 3.8 or later
+- RAM: 4GB minimum (8GB recommended)
+- Storage: 100MB available space
 
 Installation
-1. Ensure Python 3.x is installed on your system.
-2. Download the source code for the Dispatch Call Management System.
-3. Extract the files to a directory of your choice.
-
-How to Run
-1. Open a terminal or command prompt.
-2. Navigate to the directory containing the source code.
-3. Run the following command:
+------------
+1. Ensure Python 3.8+ is installed
+2. Download or clone the repository
+3. Run from command line:
    python main.py
 
+First Run
+---------
+- System will create:
+  - autosave.txt and autosave.csv
+  - backups/ directory
+- Prompt for username login
+
 User Guide
+----------
 Getting Started
 1. Logging In: Upon launching the application, enter your username to log in.
 2. Main Interface: The main window consists of input fields, buttons, a table for displaying calls, and a log area for system messages.
@@ -70,12 +77,21 @@ Saving and Loading Data
 - Load Data: Click "Load" in the File menu to load data from a .txt or .csv file.
 
 Troubleshooting
+-------------
 - File Not Found Error: Ensure autosave.txt or autosave.csv exists in the same directory as the application.
 - Input Validation Errors: Ensure all required fields are filled before adding or modifying a call.
 - Data Corruption: Avoid manually editing autosave.txt or autosave.csv files.
 - Performance Issues: Large datasets may slow down the application. Consider splitting data into smaller files.
 
+Backup System
+-------------
+- Automatic backups every 15 minutes
+- Stored in backups/ directory
+- Files named: BackUp[#]_YYYYMMDD_HHMMSS.ext
+- Maintains last 10 backup sets
+
 Pros and Cons
+-------------
 Pros
 - User-Friendly Interface: Intuitive design with clear input fields and buttons.
 - Data Persistence: Automatically saves data to prevent loss.
