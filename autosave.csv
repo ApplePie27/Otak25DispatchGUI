@@ -1,0 +1,7 @@
+CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy,CreatedBy,ModifiedBy,RedFlag,ReportNumber,Deleted
+DC250001,2025-04-15,14:04,,False,Radio,Safety,Test,A,Green,test,,test,test,True,14069S0,False
+DC250002,2025-04-15,14:08,,False,Radio,Safety,asdfasdf,A,Green,asdfasdf,,test,,False,,False
+DC250003,2025-04-15,14:08,,False,Radio,Safety,asdfasdf,A,Green,ufiurenfoiewfpe,,test,test,False,,False
+DC250004,2025-04-15,14:10,,False,Radio,Safety,asdfasdf,A,Green,asdfasdf,,test,,False,,False
+DC250005,2025-04-15,14:10,,False,Radio,Safety,ttttt,A,Green,tttttt,,test,,False,,False
+DC250006,2025-04-15,14:26,,False,Radio,Safety,asdfasdfaodmwdwqdpmdw,A,Green,ufiurenfoiewfpe,,test,,False,,False

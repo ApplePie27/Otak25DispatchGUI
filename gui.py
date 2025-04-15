@@ -6,6 +6,7 @@ from datetime import datetime
 import shutil
 import os
 from threading import Timer
+import pickle
 
 class DispatchCallApp:
     def __init__(self, root):
@@ -18,14 +19,21 @@ class DispatchCallApp:
         self.backup_counter = 1
         self.max_backups = 10
         self.show_deleted = False
+        self.has_unsaved_changes = False
+        self.last_call_entered = None
 
-        # Create all UI components first
+        # Create minimal UI needed for login first
+        self.create_status_bar()
         self.create_log_area()
+
+        # Show login prompt immediately
+        if not self.ensure_user_logged_in():
+            self.root.destroy()
+            return
+
+        # Now create the rest of the UI
         self.create_table()
-        
-        # Then load data
         self.load_autosave()
-        self.login()
 
         # Input Fields
         self.input_medium_var = tk.StringVar(value="Radio")
@@ -44,11 +52,59 @@ class DispatchCallApp:
         self.create_input_fields()
         self.create_buttons()
         self.create_search_bar()
-        self.create_status_bar()
 
         self.configure_grid_weights()
         self.root.after(125, self.reload_data_loop)
         self.start_backup_timer()
+
+        # Bind window close event
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def ensure_user_logged_in(self):
+        """Ensure a user is logged in, prompt if not. Returns False if user cancels."""
+        while not self.manager.current_user:
+            username = simpledialog.askstring("Login", "Enter your username:", parent=self.root)
+            if username:
+                self.manager.set_user(username)
+                # Use status bar instead of log area which might not be ready
+                self.update_status(f"User '{username}' logged in")
+                return True
+            else:
+                if messagebox.askyesno("Exit", "No username entered. Exit application?"):
+                    return False
+        return True
+
+    # ... [rest of the methods remain exactly the same] ...
+
+    def on_close(self):
+        """Handle window close event with confirmation."""
+        # First ensure a user is logged in
+        if not self.manager.current_user:
+            if not self.ensure_user_logged_in():
+                return  # User canceled login and doesn't want to exit
+
+        # Then check for unsaved changes
+        has_pending_call = (
+            self.caller_var.get().strip() or 
+            self.description_entry.get("1.0", tk.END).strip()
+        )
+    
+        if self.has_unsaved_changes or has_pending_call:
+            prompt_msg = "You have unsaved changes or an unsubmitted call. Save before exiting?"
+            response = messagebox.askyesnocancel(
+                "Save Changes",
+                prompt_msg,
+                detail="Click 'Yes' to save, 'No' to exit without saving, or 'Cancel' to return."
+            )
+        
+            if response is None:  # Cancel
+                return
+            elif response:  # Yes
+                if has_pending_call:
+                    self.add_call()
+                self.save_and_reload()
+    
+        self.root.destroy()
 
     def start_backup_timer(self):
         """Initialize and start the backup timer."""
@@ -65,13 +121,10 @@ class DispatchCallApp:
             os.makedirs(backup_dir, exist_ok=True)
             
             backup_prefix = f"BackUp{self.backup_counter}_{timestamp}"
-            txt_backup = os.path.join(backup_dir, f"{backup_prefix}.txt")
-            csv_backup = os.path.join(backup_dir, f"{backup_prefix}.csv")
+            bin_backup = os.path.join(backup_dir, f"{backup_prefix}.bin")
             
-            # Create backup copies
-            shutil.copy2("autosave.txt", txt_backup)
-            if os.path.exists("autosave.csv"):
-                shutil.copy2("autosave.csv", csv_backup)
+            # Create backup copy in binary format
+            self.manager.save_to_file(bin_backup, filetype="bin")
             
             self.log(f"Backup created: {backup_prefix}")
             self.backup_counter += 1
@@ -90,23 +143,20 @@ class DispatchCallApp:
         try:
             backup_files = []
             for f in os.listdir(backup_dir):
-                if f.startswith("BackUp") and (f.endswith(".txt") or f.endswith(".csv")):
+                if f.startswith("BackUp") and f.endswith(".bin"):
                     backup_files.append(os.path.join(backup_dir, f))
             
             # Sort by modification time (oldest first)
             backup_files.sort(key=lambda x: os.path.getmtime(x))
             
             # Delete oldest if we exceed max_backups
-            while len(backup_files) > self.max_backups * 2:  # *2 for txt and csv
+            while len(backup_files) > self.max_backups:
                 os.remove(backup_files[0])
                 backup_files.pop(0)
                 self.log(f"Rotated out old backup: {os.path.basename(backup_files[0])}")
                 
         except Exception as e:
             self.log(f"Backup rotation failed: {e}")
-
-    # ... [All other methods remain exactly the same as in the previous complete implementation]
-    # Make sure to include ALL methods from the previous complete version
 
     def create_log_area(self):
         """Create the log area for system messages."""
@@ -137,7 +187,9 @@ class DispatchCallApp:
         file_menu.add_command(label="Save", command=self.save_data)
         file_menu.add_command(label="Load", command=self.load_data)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
+        file_menu.add_command(label="Change User", command=self.change_user)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.on_close)
         menubar.add_cascade(label="File", menu=file_menu)
 
         # Help menu
@@ -145,15 +197,28 @@ class DispatchCallApp:
         help_menu.add_command(label="User Guide", command=self.show_user_guide)
         menubar.add_cascade(label="Help", menu=help_menu)
 
+    def change_user(self):
+        """Change the current user."""
+        username = simpledialog.askstring("Change User", "Enter new username:", parent=self.root)
+        if username:
+            self.manager.set_user(username)
+            self.log(f"User changed to '{username}'")
+            self.update_status(f"User changed to {username}")
+
     def save_data(self):
         """Save data to a file."""
-        filename = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
+        filename = filedialog.asksaveasfilename(defaultextension=".bin", 
+                                              filetypes=[("Binary Files", "*.bin"), 
+                                                         ("Text Files", "*.txt"), 
+                                                         ("CSV Files", "*.csv")])
         if filename:
-            filetype = "txt" if filename.endswith(".txt") else "csv"
+            filetype = "bin" if filename.endswith(".bin") else ("txt" if filename.endswith(".txt") else "csv")
             try:
                 self.manager.save_to_file(filename, filetype)
                 self.log(f"Data saved to {filename}")
                 self.update_status("Data saved successfully.")
+                self.has_unsaved_changes = False
+                self.last_call_entered = None
             except Exception as e:
                 self.log(f"Failed to save data: {e}")
                 self.update_status(f"Failed to save data: {e}")
@@ -161,14 +226,18 @@ class DispatchCallApp:
 
     def load_data(self):
         """Load data from a file."""
-        filename = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("CSV Files", "*.csv")])
+        filename = filedialog.askopenfilename(filetypes=[("Binary Files", "*.bin"),
+                                                       ("Text Files", "*.txt"), 
+                                                       ("CSV Files", "*.csv")])
         if filename:
-            filetype = "txt" if filename.endswith(".txt") else "csv"
+            filetype = "bin" if filename.endswith(".bin") else ("txt" if filename.endswith(".txt") else "csv")
             try:
                 if self.manager.load_from_file(filename, filetype):
                     self.update_table()
                     self.log(f"Data loaded from {filename}")
                     self.update_status("Data loaded successfully.")
+                    self.has_unsaved_changes = False
+                    self.last_call_entered = None
                 else:
                     self.log(f"Failed to load data from {filename}")
                     self.update_status("Failed to load data.")
@@ -192,7 +261,7 @@ class DispatchCallApp:
                               "Modifying a Call\n"
                               " 1. Select a call from the table.\n"
                               " 2. Update the input fields.\n"
-                              " 3. Click 'Modify Call'.\n\n"
+                              " 3. Click 'Save Modification'.\n\n"
                               "Deleting a Call\n"
                               " 1. Select a call from the table.\n"
                               " 2. Click 'Delete Call' (marks as deleted).\n\n"
@@ -218,29 +287,28 @@ class DispatchCallApp:
         self.status_var.set(message)
 
     def load_autosave(self):
-        """Load data from the autosave file."""
+        """Load data from the autosave file (binary format)."""
         try:
-            if self.manager.load_from_file("autosave.txt", filetype="txt"):
+            if self.manager.load_from_file("autosave.bin", filetype="bin"):
                 self.last_loaded_hash = self.manager._calculate_hash()
-                self.log("Autosave loaded successfully.")
+                self.log("Autosave loaded successfully from binary file.")
                 self.update_table()
             else:
-                self.log("No autosave found, starting with empty data.")
-                self.manager.calls = []
-                self.manager.report_counter = 1
-                self.last_loaded_hash = self.manager._calculate_hash()
+                # Fallback to text format if binary doesn't exist
+                if self.manager.load_from_file("autosave.txt", filetype="txt"):
+                    self.last_loaded_hash = self.manager._calculate_hash()
+                    self.log("Autosave loaded from text file (binary not found).")
+                    self.update_table()
+                    # Convert to binary format for future use
+                    self.manager.save_to_file("autosave.bin", filetype="bin")
+                else:
+                    self.log("No autosave found, starting with empty data.")
+                    self.manager.calls = []
+                    self.manager.report_counter = 1
+                    self.last_loaded_hash = self.manager._calculate_hash()
         except Exception as e:
             self.log(f"Error loading autosave: {e}")
             messagebox.showerror("Error", f"Error loading autosave: {e}")
-
-    def login(self):
-        """Prompt the user to log in."""
-        username = simpledialog.askstring("Login", "Enter your username:", parent=self.root)
-        if username:
-            self.manager.set_user(username)
-            self.log(f"User '{username}' logged in.")
-        else:
-            self.root.destroy()
 
     def create_input_fields(self):
         """Create input fields for new dispatch calls."""
@@ -321,7 +389,7 @@ class DispatchCallApp:
         self.search_label_click_count = 0
 
         ttk.Button(buttons_frame, text="Add Call", command=self.add_call).grid(row=0, column=0, padx=5, pady=5)
-        ttk.Button(buttons_frame, text="Modify Call", command=self.modify_call).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Button(buttons_frame, text="Save Modification", command=self.modify_call).grid(row=0, column=2, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Resolve Call", command=self.resolve_call).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Red Flag", command=self.red_flag_call).grid(row=0, column=6, padx=5, pady=5)
         ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields).grid(row=0, column=4, padx=5, pady=5)
@@ -456,27 +524,36 @@ class DispatchCallApp:
     def save_and_reload(self):
         """Save the data and reload it."""
         try:
+            # Save primary autosave in binary format
+            self.manager.save_to_file("autosave.bin", filetype="bin")
+            
+            # Optional: Keep text backups for compatibility
             self.manager.save_to_file("autosave.txt", filetype="txt")
             self.manager.save_to_file("autosave.csv", filetype="csv")
-            self.log("Autosave completed (both txt and csv).")
             
-            if self.manager.load_from_file("autosave.txt", filetype="txt"):
+            self.log("Autosave completed (primary binary format)")
+            self.has_unsaved_changes = False
+            self.last_call_entered = None
+            
+            if self.manager.load_from_file("autosave.bin", filetype="bin"):
                 self.update_table()
-                self.log("Data reloaded successfully from autosave.txt.")
+                self.log("Data reloaded successfully from autosave.bin.")
             else:
-                self.log("Failed to reload data from autosave.txt.")
+                self.log("Failed to reload data from autosave.bin.")
         except Exception as e:
             self.log(f"Error during save/reload: {e}")
             messagebox.showerror("Autosave Error", f"Error during autosave: {e}")
 
     def reload_data_loop(self):
         """Reload data from the autosave file if it has changed."""
-        current_hash = calculate_file_hash("autosave.txt")
+        current_hash = calculate_file_hash("autosave.bin")
         if current_hash != self.last_loaded_hash:
-            if self.manager.load_from_file("autosave.txt", filetype="txt"):
+            if self.manager.load_from_file("autosave.bin", filetype="bin"):
                 self.last_loaded_hash = current_hash
                 self.update_table()
                 self.log("Data reloaded due to changes in autosave file.")
+                self.has_unsaved_changes = False
+                self.last_call_entered = None
 
         self.root.after(125, self.reload_data_loop)
 
@@ -503,9 +580,12 @@ class DispatchCallApp:
             "ResolvedBy": self.resolved_by_var.get() if self.resolution_status_var.get() else ""
         }
         self.manager.add_call(call)
-        self.save_and_reload()
+        self.last_call_entered = call['CallID']
         self.log(f"Call added: {call['CallID']}")
         self.update_status("Call added successfully.")
+        self.has_unsaved_changes = True
+        self.save_and_reload()  # This line was added to refresh the table
+        self.clear_input_fields()
 
     def resolve_call(self):
         """Resolve a call."""
@@ -518,6 +598,7 @@ class DispatchCallApp:
                 self.save_and_reload()
                 self.log(f"Call resolved: {call_id} by {resolved_by}")
                 self.update_status("Call resolved successfully.")
+                self.has_unsaved_changes = True
 
     def modify_call(self):
         """Modify an existing call."""
@@ -538,6 +619,7 @@ class DispatchCallApp:
             self.save_and_reload()
             self.log(f"Call modified: {call_id}")
             self.update_status("Call modified successfully.")
+            self.has_unsaved_changes = True
 
     def delete_call(self):
         """Mark the selected call as deleted."""
@@ -555,6 +637,7 @@ class DispatchCallApp:
                 self.save_and_reload()
                 self.log(f"Call marked as deleted: {call_id}")
                 self.update_status("Call marked as deleted.")
+                self.has_unsaved_changes = True
 
     def restore_call(self):
         """Restore a deleted call."""
@@ -565,6 +648,7 @@ class DispatchCallApp:
             self.save_and_reload()
             self.log(f"Call restored: {call_id}")
             self.update_status("Call restored successfully.")
+            self.has_unsaved_changes = True
 
     def print_report(self):
         """Generate and print a report of all calls."""
@@ -628,6 +712,7 @@ class DispatchCallApp:
             self.save_and_reload()
             self.log(f"Call red-flag toggled: {call_id}")
             self.update_status("Call red-flag status updated.")
+            self.has_unsaved_changes = True
 
     def toggle_deleted(self):
         """Toggle display of deleted calls."""

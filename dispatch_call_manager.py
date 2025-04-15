@@ -3,6 +3,7 @@ import csv
 from datetime import datetime
 import hashlib
 import random
+import pickle
 
 class DispatchCallManager:
     def __init__(self):
@@ -104,13 +105,20 @@ class DispatchCallManager:
                 call["ModifiedBy"] = self.current_user
                 break
 
-    def save_to_file(self, filename, filetype="txt"):
+    def save_to_file(self, filename, filetype="bin"):
         """Save calls to a file."""
         if not filename:
             raise ValueError("Filename cannot be empty.")
         
         try:
-            if filetype == "txt":
+            if filetype == "bin":
+                with open(filename, "wb") as file:
+                    pickle.dump({
+                        'calls': self.calls,
+                        'report_counter': self.report_counter,
+                        'current_user': self.current_user
+                    }, file)
+            elif filetype == "txt":
                 with open(filename, "w") as file:
                     for call in self.calls:
                         file.write(json.dumps(call) + "\n")
@@ -132,20 +140,27 @@ class DispatchCallManager:
         except Exception as e:
             raise Exception(f"Failed to save file: {e}")
 
-    def load_from_file(self, filename, filetype="txt"):
+    def load_from_file(self, filename, filetype="bin"):
         """Load calls from a file."""
         if not filename:
             raise ValueError("Filename cannot be empty.")
         
         try:
             self.calls = []
-            if filetype == "txt":
+            if filetype == "bin":
+                with open(filename, "rb") as file:
+                    data = pickle.load(file)
+                    self.calls = data['calls']
+                    self.report_counter = data['report_counter']
+                    self.current_user = data['current_user']
+            elif filetype == "txt":
                 with open(filename, "r") as file:
                     for line in file:
                         call = json.loads(line.strip())
                         if "Deleted" not in call:
                             call["Deleted"] = False
                         self.calls.append(call)
+                self._update_report_counter()
             elif filetype == "csv":
                 with open(filename, "r") as file:
                     reader = csv.DictReader(file)
@@ -154,8 +169,8 @@ class DispatchCallManager:
                             if field in row:
                                 row[field] = row[field].lower() == "true"
                         self.calls.append(row)
+                self._update_report_counter()
             self.last_saved_hash = self._calculate_hash()
-            self._update_report_counter()
             return True
         except FileNotFoundError:
             return False
