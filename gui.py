@@ -35,11 +35,16 @@ class DispatchCallApp:
         }
 
         self.code_descriptions = {
-            "Green": "Routine - No immediate action required.",
-            "Yellow": "Urgent - Action required within 30 minutes.",
-            "Orange": "High Priority - Action required within 15 min.",
-            "Red": "Critical - Immediate action required.",
-            "Signal 13": "Code Black - Bomb threat."
+            "Green": "Supervisor backup.",
+            "Orange": "Hazardous material.",
+            "Red": "Suspected fire.",
+            "blue": "Life threatening medical emergency.",
+            "Yellow": "Attendee unable to walk due to minor medical issue.",
+            "Yellow M": "Mental health crisis.",
+            "Purple": "Harassment, un wanted attention, or contact.",
+            "Silver": "Active assailant.",
+            "Adam": "Lost child.",
+            "Black": "Suspicious package or call threat."
         }
         self.code_description_var = tk.StringVar(
             value=self.code_descriptions[self.code_var.get()]
@@ -297,7 +302,7 @@ class DispatchCallApp:
         self.hidden_count = getattr(self, "hidden_count", 0) + 1
         if self.hidden_count == 5:
             messagebox.showinfo("Easter Egg",
-                                "You found the hidden cheesecake!")
+                                "You found the hidden cheesecake! - nhpha")
             self.hidden_count = 0
 
     def update_code_description(self):
