@@ -35,6 +35,7 @@ class DispatchCallApp:
         }
 
         self.code_descriptions = {
+            "Signal 13 | MAYDAY": "Immediate personal danger.",
             "Green": "Supervisor backup.",
             "Orange": "Hazardous material.",
             "Red": "Suspected fire.",
