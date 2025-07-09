@@ -4,6 +4,7 @@ from dispatch_call_manager import DispatchCallManager
 from utils import calculate_file_hash
 from datetime import datetime
 import os
+import sys
 from threading import Timer
 
 class DispatchCallApp:
@@ -24,7 +25,7 @@ class DispatchCallApp:
         self.source_var = tk.StringVar()
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar()
-        self.code_var = tk.StringVar(value="Green")
+        self.code_var = tk.StringVar(value="No_Code")
         self.resolution_status_var = tk.BooleanVar(value=False)
         self.resolved_by_var = tk.StringVar()
 
@@ -35,14 +36,15 @@ class DispatchCallApp:
         }
 
         self.code_descriptions = {
-            "Signal 13 | MAYDAY": "Immediate personal danger.",
+            "Signal_13 | MAYDAY": "Immediate personal danger.",
+            "No_Code": "General situations.",
             "Green": "Supervisor backup.",
             "Orange": "Hazardous material.",
             "Red": "Suspected fire.",
-            "blue": "Life threatening medical emergency.",
+            "Blue": "Life threatening medical emergency.",
             "Yellow": "Attendee unable to walk due to minor medical issue.",
             "Yellow M": "Mental health crisis.",
-            "Purple": "Harassment, un wanted attention, or contact.",
+            "Purple": "Harassment, unwanted attention, or contact.",
             "Silver": "Active assailant.",
             "Adam": "Lost child.",
             "Black": "Suspicious package or call threat."
@@ -542,7 +544,7 @@ class DispatchCallApp:
         self.update_source_options()
         self.caller_var.set("")
         self.location_var.set("")
-        self.code_var.set("Green")
+        self.code_var.set("No_Code")
         self.update_code_description()
         self.description_entry.delete("1.0", tk.END)
         self.resolution_status_var.set(False)
@@ -666,6 +668,7 @@ class DispatchCallApp:
                 or filter_lower in c.get("Caller", "").lower()
                 or filter_lower in c.get("Description", "").lower()
                 or filter_lower in c.get("Location", "").lower()
+                or filter_lower in c.get("Code", "").lower()
             ]
 
         for call in calls_to_show:
