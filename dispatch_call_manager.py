@@ -184,3 +184,7 @@ class DispatchCallManager:
         """Calculate a hash of the current data to detect changes."""
         data = json.dumps(self.calls, sort_keys=True)
         return hashlib.md5(data.encode()).hexdigest()
+
+    def get_data_hash(self):
+        """Get the current hash of the data."""
+        return self._calculate_hash()
