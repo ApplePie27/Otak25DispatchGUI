@@ -15,6 +15,7 @@ class DispatchCallApp:
         self.root.resizable(True, True)
 
         self.manager = DispatchCallManager()
+        self.current_user = None  # GUI now owns the current user state
         self.last_loaded_hash = None
         self.backup_counter = 1
         self.max_backups = 10
@@ -98,15 +99,16 @@ class DispatchCallApp:
 
     def ensure_user_logged_in(self):
         """Ensure a user is logged in before proceeding."""
-        while not self.manager.current_user:
+        while not self.current_user:
             username = simpledialog.askstring("Login", "Enter your username:")
             if username is None:
                 self.root.destroy()
-                return
+                # Exit the application if login is cancelled
+                sys.exit()
             if username.strip():
-                self.manager.set_user(username.strip())
-                self.status_var.set(f"User: {username.strip()}")
-                self.log(f"User set to: {username.strip()}")
+                self.current_user = username.strip()
+                self.status_var.set(f"User: {self.current_user}")
+                self.log(f"User set to: {self.current_user}")
             else:
                 messagebox.showwarning("Invalid Input", "Username cannot be empty.")
 
@@ -318,7 +320,7 @@ class DispatchCallApp:
         }
 
         try:
-            call_id = self.manager.add_call(call)
+            call_id = self.manager.add_call(call, self.current_user)
             self.log(f"Call added: {call_id}")
             self.status_var.set(f"Call {call_id} added.")
             self.has_unsaved_changes = True
@@ -333,8 +335,9 @@ class DispatchCallApp:
             self.manager.save_to_file("autosave.bin", "bin")
             self.manager.save_to_file("autosave.txt", "txt")
             self.manager.save_to_file("autosave.csv", "csv")
+            # After saving, we must reload to get a fresh state from the disk
             self.manager.load_from_file("autosave.bin", "bin")
-            self.last_loaded_hash = self.manager._calculate_hash()
+            self.last_loaded_hash = self.manager.get_data_hash()
             self.update_table()
             self.log("Autosave completed and data reloaded.")
             self.status_var.set("Autosave complete.")
@@ -404,7 +407,7 @@ class DispatchCallApp:
         }
 
         try:
-            self.manager.modify_call(call_id, updated_call)
+            self.manager.modify_call(call_id, updated_call, self.current_user)
             self.log(f"Call modified: {call_id}")
             self.status_var.set(f"Call {call_id} modified.")
             self.has_unsaved_changes = True
@@ -425,7 +428,7 @@ class DispatchCallApp:
             return
 
         try:
-            self.manager.resolve_call(call_id, resolved_by.strip())
+            self.manager.resolve_call(call_id, resolved_by.strip(), self.current_user)
             self.log(f"Call resolved: {call_id} by {resolved_by.strip()}")
             self.status_var.set(f"Call {call_id} resolved.")
             self.has_unsaved_changes = True
@@ -444,7 +447,7 @@ class DispatchCallApp:
         if not confirm:
             return
         try:
-            self.manager.delete_call(call_id)
+            self.manager.delete_call(call_id, self.current_user)
             self.log(f"Call marked as deleted: {call_id}")
             self.status_var.set(f"Call {call_id} deleted.")
             self.has_unsaved_changes = True
@@ -460,7 +463,7 @@ class DispatchCallApp:
             return
         call_id = self.table.item(selected[0])["values"][0]
         try:
-            self.manager.restore_call(call_id)
+            self.manager.restore_call(call_id, self.current_user)
             self.log(f"Call restored: {call_id}")
             self.status_var.set(f"Call {call_id} restored.")
             self.has_unsaved_changes = True
@@ -476,7 +479,7 @@ class DispatchCallApp:
             return
         call_id = self.table.item(selected[0])["values"][0]
         try:
-            self.manager.red_flag_call(call_id)
+            self.manager.red_flag_call(call_id, self.current_user)
             self.log(f"Call red-flag toggled: {call_id}")
             self.status_var.set(f"Call {call_id} red-flag status changed.")
             self.has_unsaved_changes = True
@@ -587,9 +590,9 @@ class DispatchCallApp:
         if not new_user or not new_user.strip():
             messagebox.showwarning("Invalid Input", "Username cannot be empty.")
             return
-        self.manager.set_user(new_user.strip())
-        self.status_var.set(f"User changed to: {new_user.strip()}")
-        self.log(f"User changed to: {new_user.strip()}")
+        self.current_user = new_user.strip()
+        self.status_var.set(f"User changed to: {self.current_user}")
+        self.log(f"User changed to: {self.current_user}")
 
     def show_user_guide(self):
         """Show the user guide."""
@@ -626,6 +629,9 @@ class DispatchCallApp:
                 or filter_lower in c.get("Location", "").lower()
                 or filter_lower in c.get("Code", "").lower()
             ]
+        
+        # Sort calls by CallID so they appear in a consistent order
+        calls_to_show.sort(key=lambda x: x.get('CallID', ''))
 
         for call in calls_to_show:
             tags = []
@@ -662,30 +668,22 @@ class DispatchCallApp:
         self.update_table(filter_text)
 
     def load_autosave(self):
-        """Attempt to load autosave.bin (or fallback to autosave.txt)."""
+        """Attempt to load the autosave file."""
         loaded = False
-        if os.path.exists("autosave.bin"):
+        if os.path.exists(self.autosave_file):
             try:
-                loaded = self.manager.load_from_file("autosave.bin", "bin")
-                self.last_loaded_hash = self.manager._calculate_hash()
-                self.log("Autosave loaded from binary.")
+                loaded = self.manager.load_from_file(self.autosave_file, "bin")
+                self.last_loaded_hash = self.manager.get_data_hash()
+                self.log("Autosave loaded.")
                 self.update_table()
-                self.last_file_mtime = get_file_modification_time("autosave.bin")
+                self.last_file_mtime = get_file_modification_time(self.autosave_file)
             except Exception as e:
-                self.log(f"Failed to load binary autosave: {e}")
-        if not loaded and os.path.exists("autosave.txt"):
-            try:
-                loaded = self.manager.load_from_file("autosave.txt", "txt")
-                self.last_loaded_hash = self.manager._calculate_hash()
-                self.log("Autosave loaded from text.")
-                self.update_table()
-                # Immediately write back to binary for future
-                self.manager.save_to_file("autosave.bin", "bin")
-                self.last_file_mtime = get_file_modification_time("autosave.bin")
-            except Exception as e:
-                self.log(f"Failed to load text autosave: {e}")
+                self.log(f"Failed to load autosave: {e}")
+                messagebox.showerror("Load Error", f"Failed to load autosave file: {e}")
+        
         if not loaded:
             self.log("No autosave found, starting fresh.")
+
 
     def start_backup_timer(self):
         """Start the periodic backup timer."""
@@ -737,24 +735,26 @@ class DispatchCallApp:
         """Monitor autosave file for external changes."""
         while self.watching_autosave:
             try:
+                if not os.path.exists(self.autosave_file):
+                    time.sleep(1)
+                    continue
+
                 current_mtime = get_file_modification_time(self.autosave_file)
-                if current_mtime > self.last_file_mtime and self.last_file_mtime != 0:
+                if current_mtime > self.last_file_mtime:
                     self.last_file_mtime = current_mtime
+                    # Use root.after to schedule the handler on the main thread
                     self.root.after(0, self.handle_external_changes)
                 
-                if self.last_file_mtime == 0 and os.path.exists(self.autosave_file):
-                    self.last_file_mtime = get_file_modification_time(self.autosave_file)
-                
-                time.sleep(2)  # Check every 2 seconds
+                time.sleep(1)  # Check every second
             except Exception as e:
                 self.log(f"Autosave watcher error: {str(e)}")
                 time.sleep(5)
 
     def handle_external_changes(self):
         """Handle detected changes in the autosave file by reloading automatically."""
+        self.log("External change detected in autosave.bin. Reloading data...")
         self.load_autosave()
-        self.log("Data reloaded automatically due to external changes in autosave.bin")
-        self.status_var.set("Data reloaded automatically from external changes")
+        self.status_var.set("Data reloaded automatically due to external changes.")
 
     def on_close(self):
         """Clean up before closing."""
@@ -768,6 +768,11 @@ class DispatchCallApp:
             or self.location_var.get().strip()
         )
         
+        # Check if the current data in the manager differs from what's on disk
+        current_data_hash = self.manager.get_data_hash()
+        if self.last_loaded_hash != current_data_hash:
+            self.has_unsaved_changes = True
+
         if self.has_unsaved_changes or has_pending_call:
             response = messagebox.askyesnocancel(
                 "Save Changes",
@@ -778,9 +783,11 @@ class DispatchCallApp:
                 )
             )
             if response is None:
-                return
-            elif response:
-                if has_pending_call:
-                    self.add_call()
-                self.save_and_reload()
+                return # User cancelled, do not close
+            elif response: # User clicked 'Yes'
+                if has_pending_call and not any(self.table.selection()):
+                     self.add_call()
+                else:
+                     self.save_and_reload()
+        
         self.root.destroy()
