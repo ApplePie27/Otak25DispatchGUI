@@ -1,0 +1,4 @@
+CallID,CallDate,CallTime,ResolutionTimestamp,ResolutionStatus,InputMedium,Source,Caller,Location,Code,Description,ResolvedBy,CreatedBy,ModifiedBy,RedFlag,ReportNumber,Deleted
+DC250001,2025-04-15,15:41,,False,Radio,Safety,henry,D,Silver,Fire,,Fred,Fred,True,1542DKT,False
+DC250002,2025-06-19,16:23,2025-06-19 16:23,True,Radio,Safety,D43,330,Adam,WJRENWJFNOFINEWLKFNJEF,Henry,Ken,Ken,False,,False
+DC250003,2025-06-19,16:25,,False,Radio,Safety,D43,330,Adam,WJRENWJFNOFINEWLKFNJEF,,Ken,,False,,False

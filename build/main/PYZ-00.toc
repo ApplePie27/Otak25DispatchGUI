@@ -1,4 +1,4 @@
-('C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\build\\main\\PYZ-00.pyz',
+('C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\build\\main\\PYZ-00.pyz',
  [('__future__',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1520.0_x64__qbz5n2kfra8p0\\Lib\\__future__.py',
@@ -96,7 +96,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1520.0_x64__qbz5n2kfra8p0\\Lib\\dis.py',
    'PYMODULE'),
   ('dispatch_call_manager',
-   'C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\dispatch_call_manager.py',
+   'C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\dispatch_call_manager.py',
    'PYMODULE'),
   ('email',
    'C:\\Program '
@@ -199,7 +199,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1520.0_x64__qbz5n2kfra8p0\\Lib\\glob.py',
    'PYMODULE'),
   ('gui',
-   'C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\gui.py',
+   'C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\gui.py',
    'PYMODULE'),
   ('gzip',
    'C:\\Program '
@@ -478,7 +478,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1520.0_x64__qbz5n2kfra8p0\\Lib\\urllib\\parse.py',
    'PYMODULE'),
   ('utils',
-   'C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\utils.py',
+   'C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\utils.py',
    'PYMODULE'),
   ('zipfile',
    'C:\\Program '

@@ -751,15 +751,10 @@ class DispatchCallApp:
                 time.sleep(5)
 
     def handle_external_changes(self):
-        """Handle detected changes in the autosave file."""
-        if messagebox.askyesno(
-            "External Changes Detected",
-            "The autosave file has been modified externally. Reload data?",
-            parent=self.root
-        ):
-            self.load_autosave()
-            self.log("Data reloaded due to external changes in autosave.bin")
-            self.status_var.set("Data reloaded from external changes")
+        """Handle detected changes in the autosave file by reloading automatically."""
+        self.load_autosave()
+        self.log("Data reloaded automatically due to external changes in autosave.bin")
+        self.status_var.set("Data reloaded automatically from external changes")
 
     def on_close(self):
         """Clean up before closing."""
