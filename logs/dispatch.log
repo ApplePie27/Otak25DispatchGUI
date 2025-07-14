@@ -207,3 +207,15 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-14 00:28:36,364 - DispatchApp - INFO - Call added: DC25-0002
 2025-07-14 00:28:47,949 - DispatchApp - INFO - Call modified: DC25-0002
 2025-07-14 00:28:56,844 - DispatchApp - INFO - Application closing.
+2025-07-14 00:38:27,463 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:38:29,590 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:38:45,131 - DispatchApp - INFO - Call added: DC25-0001
+2025-07-14 00:38:56,348 - DispatchApp - INFO - Call added: DC25-0002
+2025-07-14 00:39:04,589 - DispatchApp - INFO - Call modified: DC25-0002
+2025-07-14 00:39:09,643 - DispatchApp - INFO - Red-flag status toggled for call: DC25-0001
+2025-07-14 00:39:21,345 - DispatchApp - ERROR - Failed to export report: dict contains fields not in fieldnames: 'ID', 'Deleted', 'RedFlag'
+2025-07-14 00:43:34,898 - DispatchApp - INFO - Application closing.
+2025-07-14 00:43:36,785 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:43:39,056 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:43:45,096 - DispatchApp - INFO - Report exported to C:/Users/nhpha/Desktop/test.csv
+2025-07-14 00:44:27,842 - DispatchApp - INFO - Application closing.

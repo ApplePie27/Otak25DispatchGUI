@@ -444,10 +444,14 @@ class DispatchCallApp:
             messagebox.showinfo("Export Report", "No calls to export.")
             return
         try:
+            # FIX: Use the keys from the first data row as fieldnames.
+            # This ensures all columns from the database are included.
+            fieldnames = calls[0].keys()
             with open(filename, "w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=self.columns.keys())
+                writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()
-                for call in calls: writer.writerow(dict(call))
+                for call in calls:
+                    writer.writerow(dict(call))
             self.logger.info(f"Report exported to {filename}")
             messagebox.showinfo("Export Successful", f"Report successfully exported to\n{filename}")
         except Exception as e:
