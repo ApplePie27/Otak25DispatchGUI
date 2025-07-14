@@ -1,0 +1,2 @@
+# This file is for listing project dependencies.
+# This project now only uses standard Python libraries.

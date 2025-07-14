@@ -1,0 +1,209 @@
+2025-07-13 22:23:03,927 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:23:03,960 - DispatchApp - CRITICAL - A critical unhandled exception occurred: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 37, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 31, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 75, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:23:19,733 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:23:19,761 - DispatchApp - CRITICAL - A critical unhandled exception occurred: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 37, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 31, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 75, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:24:01,480 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:24:01,513 - DispatchApp - CRITICAL - A critical unhandled exception occurred: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 37, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 31, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 75, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:27:57,493 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:27:57,529 - DispatchApp - CRITICAL - A critical unhandled exception occurred: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 36, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 34, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 87, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:35:47,813 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:35:47,841 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 47, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 31, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 88, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:36:26,906 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:36:26,935 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+Traceback (most recent call last):
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\main.py", line 47, in <module>
+    app = DispatchCallApp(root, app_logger)
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 31, in __init__
+    self.load_config()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\nhpha\Documents\GitHub\Otak25DispatchGUI\gui.py", line 88, in load_config
+    self.code_descriptions = dict(config.items('CODES', fallback={}))
+                                  ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
+2025-07-13 22:39:45,689 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:39:48,528 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:40:12,304 - DispatchApp - INFO - Call added: DC250001
+2025-07-13 22:44:32,893 - DispatchApp - INFO - Application closing.
+2025-07-13 22:44:35,815 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:44:38,393 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:47:53,568 - DispatchApp - INFO - Application closing.
+2025-07-13 22:48:09,911 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:48:23,689 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:49:09,107 - DispatchApp - INFO - Call restored: DC250001
+2025-07-13 22:49:21,370 - DispatchApp - INFO - Call modified: DC250001
+2025-07-13 22:53:12,852 - DispatchApp - INFO - Application closing.
+2025-07-13 22:53:22,956 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:53:24,197 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:56:03,367 - DispatchApp - INFO - Application closing.
+2025-07-13 22:56:11,011 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:56:12,796 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:56:23,701 - DispatchApp - INFO - Call added: DC250002
+2025-07-13 22:58:31,066 - DispatchApp - INFO - Application closing.
+2025-07-13 22:58:37,206 - DispatchApp - INFO - Application starting up.
+2025-07-13 22:58:38,681 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 22:58:44,702 - DispatchApp - INFO - Call marked as deleted: DC250002
+2025-07-13 22:58:49,253 - DispatchApp - INFO - Call added: DC250003
+2025-07-13 23:00:58,018 - DispatchApp - INFO - Application closing.
+2025-07-13 23:01:00,529 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:01:02,333 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:01:17,514 - DispatchApp - INFO - Call added: DC250004
+2025-07-13 23:01:30,962 - DispatchApp - INFO - Call modified: DC250003
+2025-07-13 23:04:10,569 - DispatchApp - INFO - Application closing.
+2025-07-13 23:04:12,446 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:04:14,103 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:06:30,025 - DispatchApp - INFO - Application closing.
+2025-07-13 23:06:33,026 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:06:34,731 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:07:21,658 - DispatchApp - INFO - Application closing.
+2025-07-13 23:07:23,963 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:07:25,451 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:09:52,058 - DispatchApp - INFO - Application closing.
+2025-07-13 23:09:56,452 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:09:58,129 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:11:01,140 - DispatchApp - INFO - Application closing.
+2025-07-13 23:11:03,381 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:11:04,678 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:11:15,047 - DispatchApp - INFO - Application closing.
+2025-07-13 23:11:17,235 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:11:19,808 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:11:29,861 - DispatchApp - INFO - Application closing.
+2025-07-13 23:11:31,555 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:11:32,443 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:12:40,771 - DispatchApp - INFO - Application closing.
+2025-07-13 23:12:43,211 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:12:44,561 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:13:17,346 - DispatchApp - INFO - Application closing.
+2025-07-13 23:13:21,945 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:13:23,382 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:18:13,757 - DispatchApp - INFO - Application closing.
+2025-07-13 23:20:39,754 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:20:41,148 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:21:05,200 - DispatchApp - INFO - Application closing.
+2025-07-13 23:21:08,706 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:21:10,124 - DispatchApp - INFO - User 'test' logged in. Building UI.
+2025-07-13 23:21:32,139 - DispatchApp - INFO - Application closing.
+2025-07-13 23:30:24,103 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:30:25,693 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:31:04,554 - DispatchApp - INFO - Application closing.
+2025-07-13 23:31:10,892 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:31:12,310 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:32:07,292 - DispatchApp - INFO - Application closing.
+2025-07-13 23:32:08,852 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:32:10,616 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:35:08,725 - DispatchApp - INFO - Application closing.
+2025-07-13 23:35:10,292 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:35:11,837 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:35:59,427 - DispatchApp - INFO - Application closing.
+2025-07-13 23:40:43,166 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:40:45,193 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:40:56,699 - DispatchApp - INFO - Call added: DC250005
+2025-07-13 23:41:01,798 - DispatchApp - INFO - Call marked as deleted: DC250005
+2025-07-13 23:41:50,901 - DispatchApp - INFO - Call marked as deleted: DC250003
+2025-07-13 23:41:53,092 - DispatchApp - INFO - Call marked as deleted: DC250001
+2025-07-13 23:41:55,840 - DispatchApp - INFO - Call marked as deleted: DC250004
+2025-07-13 23:42:04,207 - DispatchApp - INFO - Call added: DC250006
+2025-07-13 23:42:14,643 - DispatchApp - INFO - Application closing.
+2025-07-13 23:46:06,169 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:46:07,732 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:50:32,609 - DispatchApp - INFO - Application closing.
+2025-07-13 23:55:36,520 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:56:46,932 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:57:00,563 - DispatchApp - INFO - User 'dispatch1' logged in as 'user'. Building UI.
+2025-07-13 23:57:30,209 - DispatchApp - INFO - Call added: DC250007
+2025-07-14 00:00:23,547 - DispatchApp - INFO - Application closing.
+2025-07-14 00:00:26,023 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:00:47,237 - DispatchApp - INFO - User 'dispatch1' logged in as 'user'. Building UI.
+2025-07-14 00:01:01,398 - DispatchApp - INFO - Call added: DC250008
+2025-07-14 00:02:16,134 - DispatchApp - INFO - Application closing.
+2025-07-14 00:03:44,240 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:03:47,134 - DispatchApp - INFO - User 'test' logged in as 'user'. Building UI.
+2025-07-14 00:04:19,655 - DispatchApp - INFO - Application closing.
+2025-07-14 00:04:21,839 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:04:24,143 - DispatchApp - INFO - User 'test' logged in as 'user'. Building UI.
+2025-07-14 00:04:57,619 - DispatchApp - INFO - Application closing.
+2025-07-14 00:05:01,083 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:05:02,551 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:05:14,894 - DispatchApp - INFO - Call marked as deleted: DC250006
+2025-07-14 00:05:25,346 - DispatchApp - INFO - Call marked as deleted: DC250007
+2025-07-14 00:08:00,485 - DispatchApp - INFO - Application closing.
+2025-07-14 00:08:03,053 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:08:04,957 - DispatchApp - INFO - User 'test' logged in as 'user'. Building UI.
+2025-07-14 00:08:10,832 - DispatchApp - INFO - Call added: DC250009
+2025-07-14 00:08:12,778 - DispatchApp - INFO - Call modified: DC250009
+2025-07-14 00:08:18,644 - DispatchApp - INFO - Call modified: DC250008
+2025-07-14 00:09:01,103 - DispatchApp - INFO - Red-flag status toggled for call: DC250009
+2025-07-14 00:09:37,162 - DispatchApp - INFO - Application closing.
+2025-07-14 00:19:43,838 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:19:47,807 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:20:03,708 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:23:13,614 - DispatchApp - INFO - Application closing.
+2025-07-14 00:23:15,902 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:23:17,622 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:23:21,759 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:23:33,634 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:23:36,682 - DispatchApp - INFO - Application closing.
+2025-07-14 00:23:39,519 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:23:41,491 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:23:45,820 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:26:55,307 - DispatchApp - INFO - Application closing.
+2025-07-14 00:26:58,522 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:27:00,035 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:27:05,139 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:27:59,898 - DispatchApp - ERROR - Failed to add call: no such column: ReportID
+2025-07-14 00:28:04,576 - DispatchApp - INFO - Application closing.
+2025-07-14 00:28:15,261 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:28:17,229 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:28:21,630 - DispatchApp - INFO - Call added: DC25-0001
+2025-07-14 00:28:36,364 - DispatchApp - INFO - Call added: DC25-0002
+2025-07-14 00:28:47,949 - DispatchApp - INFO - Call modified: DC25-0002
+2025-07-14 00:28:56,844 - DispatchApp - INFO - Application closing.

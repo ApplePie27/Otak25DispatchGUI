@@ -1,0 +1,30 @@
+2025-07-13 23:24:21,457 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:24:24,684 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:24:36,649 - DispatchApp - INFO - Application closing.
+2025-07-13 23:25:02,912 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:25:04,857 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:26:21,137 - DispatchApp - INFO - Application closing.
+2025-07-13 23:26:23,074 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:26:25,225 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:26:56,802 - DispatchApp - INFO - Application closing.
+2025-07-13 23:26:58,326 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:27:00,457 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:27:11,783 - DispatchApp - INFO - Call added: DC250001
+2025-07-13 23:27:14,734 - DispatchApp - INFO - Application closing.
+2025-07-13 23:27:19,288 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:27:21,172 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:27:39,511 - DispatchApp - INFO - Application closing.
+2025-07-13 23:37:38,117 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:37:41,402 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:38:36,370 - DispatchApp - INFO - Application closing.
+2025-07-13 23:38:38,319 - DispatchApp - INFO - Application starting up.
+2025-07-13 23:38:40,209 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-13 23:38:48,197 - DispatchApp - INFO - Application closing.
+2025-07-14 00:11:03,348 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:11:06,167 - DispatchApp - INFO - User 'Test' logged in. Building UI.
+2025-07-14 00:11:10,586 - DispatchApp - INFO - Application closing.
+2025-07-14 00:13:04,705 - DispatchApp - INFO - Application starting up.
+2025-07-14 00:13:08,623 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-14 00:13:19,690 - DispatchApp - INFO - Call marked as deleted: DC250001
+2025-07-14 00:13:27,860 - DispatchApp - INFO - Call added: DC250002
+2025-07-14 00:19:40,758 - DispatchApp - INFO - Application closing.
