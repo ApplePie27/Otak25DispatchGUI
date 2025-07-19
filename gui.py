@@ -113,7 +113,7 @@ class DispatchCallApp:
         if not self.code_descriptions:
             self.code_descriptions = {"no_code": "No specific code assigned."}
         
-        self.display_to_config_map = {key.replace('_', ' ').title(): key for key in self.code_descriptions.keys()}
+        self.display_to_config_map = {self.config.get('CODES', key).split('|')[0].strip(): key for key in self.config.options('CODES')}
         self.config_to_display_map = {v: k for k, v in self.display_to_config_map.items()}
 
         self.source_options = {}
@@ -211,8 +211,8 @@ class DispatchCallApp:
         code_cb.grid(row=3, column=1, padx=5, pady=2, sticky="w")
         code_cb.bind("<<ComboboxSelected>>", self.update_code_description)
         
-        no_code_display = self.config_to_display_map.get("no_code", "")
-        if no_code_display and no_code_display in formatted_codes:
+        no_code_display = self.config_to_display_map.get("no_code", "No Code")
+        if no_code_display in formatted_codes:
             self.code_var.set(no_code_display)
         elif formatted_codes:
             self.code_var.set(formatted_codes[0])
@@ -278,6 +278,12 @@ class DispatchCallApp:
             self.red_flag_button, self.toggle_deleted_button, self.restore_button, self.history_button
         ]
 
+    # --- FEATURE IMPLEMENTATION ---
+    # New method to handle manual scroll events.
+    def _on_manual_scroll(self, event=None):
+        """Called when the user manually scrolls, unchecking the auto-scroll box."""
+        self.auto_scroll_var.set(False)
+
     def create_table(self):
         self.columns = {
             "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60),
@@ -298,16 +304,23 @@ class DispatchCallApp:
             self.table.heading(col, text=heading, command=lambda _col=col: self.sort_table(_col))
             self.table.column(col, width=width, anchor="w" if col == "Description" else "center")
         
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
-        self.table.configure(yscrollcommand=scrollbar.set)
+        self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
+        self.table.configure(yscrollcommand=self.scrollbar.set)
         
         self.table.tag_configure("resolved", background="#d0f0c0")
         self.table.tag_configure("redflag", background="#f08080")
         self.table.tag_configure("deleted", foreground="#a9a9a9")
+        
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
-
+        
+        # --- FEATURE IMPLEMENTATION ---
+        # Bind manual scroll events to the new handler.
+        self.table.bind("<MouseWheel>", self._on_manual_scroll)
+        self.scrollbar.bind("<ButtonPress-1>", self._on_manual_scroll)
+        self.scrollbar.bind("<B1-Motion>", self._on_manual_scroll)
+        
         self.table.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.scrollbar.grid(row=0, column=1, sticky="ns")
 
     def sort_table(self, col):
         if self.sort_column == col: self.sort_direction = "DESC" if self.sort_direction == "ASC" else "ASC"
@@ -334,11 +347,7 @@ class DispatchCallApp:
     def update_code_description(self, event=None):
         display_key = self.code_var.get()
         config_key = self.display_to_config_map.get(display_key)
-        
-        description = "Unknown Code"
-        if config_key and config_key in self.code_descriptions:
-            description = self.code_descriptions[config_key].rsplit('|', 1)[-1].strip()
-        
+        description = self.code_descriptions.get(config_key, "Unknown Code").split('|', 1)[-1].strip()
         self.code_description_var.set(description)
 
     def toggle_resolver_entry(self):
@@ -459,6 +468,11 @@ class DispatchCallApp:
             if not messagebox.askyesno("Unsaved Changes", "You have unsaved changes that will be lost. Discard them?"):
                 return "break"
         if not self.table.selection(): return
+        
+        # --- FEATURE IMPLEMENTATION ---
+        # Disable the Add button as soon as a selection is made.
+        self.add_button.config(state="disabled")
+
         item = self.table.item(self.table.selection()[0])
         call = dict(zip(self.columns.keys(), item['values']))
         self.is_loading_data = True
@@ -505,6 +519,10 @@ class DispatchCallApp:
             if no_code_display: self.code_var.set(no_code_display)
 
             self.update_code_description()
+            
+            # --- FEATURE IMPLEMENTATION ---
+            # Re-enable the Add button only when the form is explicitly cleared.
+            self.add_button.config(state="normal")
         finally:
             self.is_loading_data = False
         self.is_dirty = False
@@ -512,8 +530,6 @@ class DispatchCallApp:
     def export_report(self):
         filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
         if not filename: return
-        # --- BUG FIX ---
-        # Correctly pass the sort parameters to the background task.
         self._run_in_thread(self.manager.get_all_calls, 
                              lambda s, r: self._on_export_data_fetched(s, r, filename), 
                              self.sort_column, self.sort_direction)
@@ -629,8 +645,6 @@ class DispatchCallApp:
     def start_backup_timer(self): self.root.after(900 * 1000, self.create_backup)
 
     def create_backup(self):
-        # --- BUG FIX ---
-        # Correctly pass arguments to the background task.
         self._run_in_thread(self.manager.create_backup, self._on_backup_complete, "backups", self.max_backups)
 
     def _on_backup_complete(self, success, result_or_error):
@@ -660,8 +674,6 @@ class DispatchCallApp:
             messagebox.showwarning("Selection Error", "No call selected.")
             return
         report_id = self.table.item(self.table.selection()[0])["values"][0]
-        # --- BUG FIX ---
-        # Correctly pass the report_id to the background task.
         self._run_in_thread(self.manager.get_history_for_call, lambda s, r: self._on_history_fetched(s, r, report_id), report_id)
 
     def _on_history_fetched(self, success, records, report_id):

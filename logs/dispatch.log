@@ -402,3 +402,16 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-18 23:54:53,963 - DispatchApp - INFO - Red-flag status toggled for call: DC25-0001
 2025-07-18 23:55:24,421 - DispatchApp - INFO - Call modified: DC25-0005
 2025-07-18 23:55:39,250 - DispatchApp - INFO - Application closing.
+2025-07-19 00:14:00,495 - DispatchApp - INFO - Application starting up.
+2025-07-19 00:14:02,104 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-19 00:57:52,263 - DispatchApp - INFO - Application starting up.
+2025-07-19 00:57:53,858 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-19 00:58:23,229 - DispatchApp - INFO - Application closing.
+2025-07-19 01:15:22,683 - DispatchApp - INFO - Application starting up.
+2025-07-19 01:15:25,383 - DispatchApp - INFO - User 'user' logged in as 'user'. Building UI.
+2025-07-19 01:19:05,970 - DispatchApp - INFO - Application closing.
+2025-07-19 01:19:33,740 - DispatchApp - INFO - Application starting up.
+2025-07-19 01:19:35,726 - DispatchApp - INFO - User 'user' logged in as 'user'. Building UI.
+2025-07-19 01:19:54,787 - DispatchApp - INFO - Call added: DC25-0010
+2025-07-19 01:19:58,003 - DispatchApp - INFO - Call added: DC25-0011
+2025-07-19 01:20:21,058 - DispatchApp - INFO - Application closing.
