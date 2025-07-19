@@ -219,3 +219,44 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-14 00:43:39,056 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
 2025-07-14 00:43:45,096 - DispatchApp - INFO - Report exported to C:/Users/nhpha/Desktop/test.csv
 2025-07-14 00:44:27,842 - DispatchApp - INFO - Application closing.
+2025-07-18 21:56:14,293 - DispatchApp - INFO - Application starting up.
+2025-07-18 21:56:16,870 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-18 21:56:46,912 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:57:16,926 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:57:46,931 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:58:16,938 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:58:46,954 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:59:16,954 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 21:59:46,963 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:00:16,966 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:00:46,978 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:01:16,991 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:01:46,993 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:02:16,996 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:02:47,008 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:03:17,016 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:03:47,028 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:04:17,036 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:04:47,051 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:05:17,064 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:05:47,070 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:06:17,076 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:06:47,079 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:07:17,085 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:07:47,095 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:08:17,107 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:08:47,114 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:09:17,121 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:09:47,127 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:10:17,139 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:10:47,151 - DispatchApp - INFO - Performing automatic table refresh.
+2025-07-18 22:11:05,864 - DispatchApp - INFO - Application closing.
+2025-07-18 22:25:34,873 - DispatchApp - INFO - Application starting up.
+2025-07-18 22:25:39,053 - DispatchApp - INFO - User 'mana' logged in as 'user'. Building UI.
+2025-07-18 22:25:44,607 - DispatchApp - INFO - Application closing.
+2025-07-18 22:25:46,402 - DispatchApp - INFO - Application starting up.
+2025-07-18 22:25:48,220 - DispatchApp - INFO - User 'mana' logged in as 'user'. Building UI.
+2025-07-18 22:25:50,614 - DispatchApp - INFO - Application closing.
+2025-07-18 22:25:52,360 - DispatchApp - INFO - Application starting up.
+2025-07-18 22:26:39,898 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 22:26:48,106 - DispatchApp - INFO - Application closing.
