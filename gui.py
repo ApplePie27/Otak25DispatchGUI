@@ -87,23 +87,24 @@ class DispatchCallApp:
         self._setup_dirty_tracking()
         self.update_table()
         self.start_backup_timer()
-        # --- ARCHITECTURAL CHANGE ---
-        # Start the auto-refresh loop
         self.start_auto_refresh()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def load_config(self):
         self.config.read('config.ini')
-        # --- ARCHITECTURAL CHANGE ---
-        # Load auto-refresh interval from config and convert to milliseconds
         self.auto_refresh_interval_ms = self.config.getint('APPLICATION', 'auto_refresh_seconds', fallback=30) * 1000
         self.max_backups = self.config.getint('BACKUP', 'max_backups', fallback=10)
+        
+        # Build mapping for codes, handling potential for complex keys
         self.code_descriptions = dict(self.config.items('CODES')) if self.config.has_section('CODES') else {}
         if not self.code_descriptions:
-            self.code_descriptions = {"No_Code": "No specific code assigned."}
-        # Correctly handle spaces and capitalization in keys from config for the mapping
+            self.code_descriptions = {"no_code": "No specific code assigned."}
+        
+        # display_to_config_map: 'Signal 13 | Mayday' -> 'signal_13 | mayday'
+        # config_to_display_map: 'signal_13 | mayday' -> 'Signal 13 | Mayday'
         self.display_to_config_map = {key.replace('_', ' ').title(): key for key in self.code_descriptions.keys()}
         self.config_to_display_map = {v: k for k, v in self.display_to_config_map.items()}
+
         self.source_options = {}
         if self.config.has_section('SOURCES'):
             for medium, sources in self.config.items('SOURCES'):
@@ -192,16 +193,20 @@ class DispatchCallApp:
         ttk.Entry(fields_frame, textvariable=self.caller_var, width=uniform_width+3).grid(row=1, column=1, padx=5, pady=2, sticky="w")
         ttk.Label(fields_frame, text="Location:").grid(row=2, column=0, padx=5, pady=2, sticky="w")
         ttk.Entry(fields_frame, textvariable=self.location_var, width=uniform_width+3).grid(row=2, column=1, padx=5, pady=2, sticky="w")
+        
         formatted_codes = list(self.display_to_config_map.keys())
         ttk.Label(fields_frame, text="Code:").grid(row=3, column=0, padx=5, pady=2, sticky="w")
         code_cb = ttk.Combobox(fields_frame, textvariable=self.code_var, state="readonly", values=formatted_codes, width=uniform_width)
         code_cb.grid(row=3, column=1, padx=5, pady=2, sticky="w")
         code_cb.bind("<<ComboboxSelected>>", self.update_code_description)
-        no_code_display = self.config_to_display_map.get("no_code", "") # Note: keys in config are lowercased
+        
+        # Set default code
+        no_code_display = self.config_to_display_map.get("no_code", "")
         if no_code_display and no_code_display in formatted_codes:
             self.code_var.set(no_code_display)
         elif formatted_codes:
             self.code_var.set(formatted_codes[0])
+
         ttk.Label(fields_frame, text="Code Desc:").grid(row=3, column=2, padx=5, pady=2, sticky="w")
         ttk.Label(fields_frame, textvariable=self.code_description_var, wraplength=400, justify="left").grid(row=3, column=3, columnspan=2, padx=5, pady=2, sticky="w")
         ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=2, sticky="nw")
@@ -258,19 +263,17 @@ class DispatchCallApp:
             "ResolvedBy": ("Resolved By", 100), "CreatedBy": ("Created By", 100),
             "ModifiedBy": ("Modified By", 100), "ReportNumber": ("Report #", 100)
         }
-        # --- ARCHITECTURAL CHANGE ---
-        # Create a frame for the Treeview and its scrollbar
+        
         table_frame = ttk.Frame(self.root)
         table_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
-        
+
         self.table = ttk.Treeview(table_frame, columns=list(self.columns.keys()), show="headings")
         for col, (heading, width) in self.columns.items():
             self.table.heading(col, text=heading, command=lambda _col=col: self.sort_table(_col))
             self.table.column(col, width=width, anchor="w" if col == "Description" else "center")
-            
-        # Add a scrollbar
+        
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=scrollbar.set)
         
@@ -278,9 +281,10 @@ class DispatchCallApp:
         self.table.tag_configure("redflag", background="#f08080")
         self.table.tag_configure("deleted", foreground="#a9a9a9")
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
-        
+
         self.table.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
+
 
     def sort_table(self, col):
         if self.sort_column == col: self.sort_direction = "DESC" if self.sort_direction == "ASC" else "ASC"
@@ -306,7 +310,8 @@ class DispatchCallApp:
         
         description = "Unknown Code"
         if config_key and config_key in self.code_descriptions:
-            description = self.code_descriptions[config_key].split('|')[-1].strip()
+            # Safely get the description part after the last '|'
+            description = self.code_descriptions[config_key].rsplit('|', 1)[-1].strip()
         
         self.code_description_var.set(description)
 
@@ -342,7 +347,6 @@ class DispatchCallApp:
 
     def add_call(self):
         if not self._validate_fields(): return
-        # Get the config key (e.g., 'signal_13 | mayday') from the display key
         raw_code = self.display_to_config_map.get(self.code_var.get(), "")
         call_data = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
@@ -378,7 +382,6 @@ class DispatchCallApp:
 
     def _on_modify_call_complete(self, success, result_or_error):
         if success:
-            # Check selection still exists before accessing it
             if self.table.selection():
                 report_id = self.table.item(self.table.selection()[0])["values"][0]
                 self.logger.info(f"Call modified: {report_id}")
@@ -414,7 +417,6 @@ class DispatchCallApp:
     def load_selected_call(self, event):
         if self.is_dirty:
             if not messagebox.askyesno("Unsaved Changes", "You have unsaved changes that will be lost. Discard them?"):
-                # Returning "break" prevents the selection from changing
                 return "break"
         if not self.table.selection(): return
         item = self.table.item(self.table.selection()[0])
@@ -427,7 +429,6 @@ class DispatchCallApp:
             self.caller_var.set(call.get("Caller", ""))
             self.location_var.set(call.get("Location", ""))
             
-            # The value in the table is the display code (e.g., 'Signal 13 | Mayday')
             display_code = call.get("Code", "")
             self.code_var.set(display_code)
 
@@ -459,8 +460,10 @@ class DispatchCallApp:
             self.resolution_status_var.set(False)
             self.resolved_by_var.set("")
             self.resolved_by_entry.configure(state="disabled")
+            
             no_code_display = self.config_to_display_map.get("no_code", "")
             if no_code_display: self.code_var.set(no_code_display)
+
             self.update_code_description()
         finally:
             self.is_loading_data = False
@@ -505,19 +508,14 @@ class DispatchCallApp:
         else:
             self.current_user = original_user
 
-    # --- ARCHITECTURAL CHANGE ---
-    # `update_table` is now enhanced to preserve the UI state (selection and scroll).
     def update_table(self):
         """Fetches data and updates the table, preserving selection and scroll position."""
         pre_refresh_selected_id = None
         if self.table.selection():
-            # Get the ReportID (first value) of the selected item
             pre_refresh_selected_id = self.table.item(self.table.selection()[0])['values'][0]
         
-        # Save the current vertical scroll position
         pre_refresh_yview = self.table.yview()
 
-        # The callback function now receives the saved state
         callback = lambda s, r: self._on_update_table_data_fetched(s, r, pre_refresh_selected_id, pre_refresh_yview)
         
         self._run_in_thread(
@@ -527,8 +525,6 @@ class DispatchCallApp:
             self.sort_direction
         )
 
-    # --- ARCHITECTURAL CHANGE ---
-    # `_on_update_table_data_fetched` is enhanced to restore the UI state.
     def _on_update_table_data_fetched(self, success, all_calls, pre_refresh_selected_id, pre_refresh_yview):
         if not success:
             self.logger.error(f"Failed to fetch table data for update: {all_calls}")
@@ -551,27 +547,23 @@ class DispatchCallApp:
             values = [call.get(col, "") for col in self.columns.keys()]
             values[4] = "True" if values[4] else "False"
             
-            # Use the config_to_display_map to get the display text for the code
-            db_code = values[9] # This is the raw code from the db, e.g. 'signal_13 | mayday'
-            values[9] = self.config_to_display_map.get(db_code, db_code) # Get the display version
+            db_code = values[9] 
+            values[9] = self.config_to_display_map.get(db_code, db_code) 
             
             item_id = self.table.insert("", tk.END, values=values, tags=tags)
             
-            # Check if this item was the one previously selected
             if pre_refresh_selected_id and values[0] == pre_refresh_selected_id:
                 new_selection_item_id = item_id
 
-        # If a previously selected item is found in the new data, re-select it
         if new_selection_item_id:
             self.table.selection_set(new_selection_item_id)
             self.table.focus(new_selection_item_id)
-            self.table.see(new_selection_item_id) # Ensure it's visible
+            self.table.see(new_selection_item_id)
         
-        # Restore the previous scroll position
         self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
 
-
     def on_search(self, event=None): self.update_table()
+    
     def start_backup_timer(self): self.root.after(900 * 1000, self.create_backup)
 
     def create_backup(self):
@@ -584,8 +576,6 @@ class DispatchCallApp:
         finally:
             self.start_backup_timer()
 
-    # --- ARCHITECTURAL CHANGE ---
-    # New methods to manage the auto-refresh loop.
     def start_auto_refresh(self):
         """Schedules the next auto-refresh task."""
         self._auto_refresh_job = self.root.after(self.auto_refresh_interval_ms, self._auto_refresh_task)
@@ -595,10 +585,9 @@ class DispatchCallApp:
         if self.is_dirty:
             self.logger.info("Auto-refresh skipped due to unsaved changes in the form.")
         else:
-            self.logger.info("Performing automatic table refresh.")
+            self.logger.debug("Performing automatic table refresh.")
             self.update_table()
         
-        # Reschedule the next refresh to create a continuous loop
         self.start_auto_refresh()
 
     def view_call_history(self):
@@ -628,8 +617,6 @@ class DispatchCallApp:
         if self.is_dirty and not messagebox.askyesno("Exit", "You have unsaved changes. Are you sure you want to exit?"):
             return
         
-        # --- ARCHITECTURAL CHANGE ---
-        # Gracefully cancel the scheduled job before closing
         if hasattr(self, '_auto_refresh_job'):
             self.root.after_cancel(self._auto_refresh_job)
             
