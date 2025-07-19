@@ -260,3 +260,145 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-18 22:25:52,360 - DispatchApp - INFO - Application starting up.
 2025-07-18 22:26:39,898 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
 2025-07-18 22:26:48,106 - DispatchApp - INFO - Application closing.
+2025-07-18 23:08:47,487 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:08:50,653 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:08:57,537 - DispatchApp - INFO - Call added: DC25-0003
+2025-07-18 23:09:05,816 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:09:08,311 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:09:14,394 - DispatchApp - INFO - Call added: DC25-0004
+2025-07-18 23:09:16,158 - DispatchApp - INFO - Call added: DC25-0005
+2025-07-18 23:09:22,707 - DispatchApp - INFO - Call added: DC25-0006
+2025-07-18 23:09:23,114 - DispatchApp - INFO - Call added: DC25-0007
+2025-07-18 23:09:23,298 - DispatchApp - INFO - Call added: DC25-0008
+2025-07-18 23:09:25,325 - DispatchApp - INFO - Call added: DC25-0009
+2025-07-18 23:09:25,489 - DispatchApp - INFO - Call added: DC25-0010
+2025-07-18 23:09:25,644 - DispatchApp - INFO - Call added: DC25-0011
+2025-07-18 23:09:28,325 - DispatchApp - INFO - Call added: DC25-0012
+2025-07-18 23:09:43,724 - DispatchApp - INFO - Call added: DC25-0013
+2025-07-18 23:09:44,294 - DispatchApp - INFO - Call added: DC25-0014
+2025-07-18 23:09:44,724 - DispatchApp - INFO - Call added: DC25-0015
+2025-07-18 23:09:45,030 - DispatchApp - INFO - Call added: DC25-0016
+2025-07-18 23:09:45,456 - DispatchApp - INFO - Call added: DC25-0017
+2025-07-18 23:10:07,571 - DispatchApp - INFO - Call marked as deleted: DC25-0002
+2025-07-18 23:10:16,197 - DispatchApp - INFO - Call added: DC25-0018
+2025-07-18 23:10:27,774 - DispatchApp - INFO - Call added: DC25-0019
+2025-07-18 23:13:49,541 - DispatchApp - INFO - Application closing.
+2025-07-18 23:13:49,542 - DispatchApp - INFO - Application closing.
+2025-07-18 23:13:57,405 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:13:58,896 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:14:04,667 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:14:06,260 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:14:13,925 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:14:16,031 - DispatchApp - INFO - Call added: DC25-0020
+2025-07-18 23:14:23,792 - DispatchApp - INFO - Call added: DC25-0021
+2025-07-18 23:14:35,477 - DispatchApp - INFO - Call added: DC25-0022
+2025-07-18 23:14:39,149 - DispatchApp - INFO - Call added: DC25-0023
+2025-07-18 23:14:39,406 - DispatchApp - INFO - Call added: DC25-0024
+2025-07-18 23:14:39,691 - DispatchApp - INFO - Call added: DC25-0025
+2025-07-18 23:19:03,170 - DispatchApp - INFO - Application closing.
+2025-07-18 23:19:11,978 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:19:14,060 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:19:20,269 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:19:28,197 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:23:24,838 - DispatchApp - INFO - Application closing.
+2025-07-18 23:23:24,838 - DispatchApp - INFO - Application closing.
+2025-07-18 23:23:29,353 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:23:32,188 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:23:36,850 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:23:38,522 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:23:47,221 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:23:53,557 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:24:01,693 - DispatchApp - INFO - Call added: DC25-0026
+2025-07-18 23:24:02,221 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:24:17,222 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:24:26,789 - DispatchApp - INFO - Call added: DC25-0027
+2025-07-18 23:25:01,812 - DispatchApp - INFO - Call added: DC25-0028
+2025-07-18 23:25:02,081 - DispatchApp - INFO - Call added: DC25-0029
+2025-07-18 23:25:03,756 - DispatchApp - INFO - Call added: DC25-0030
+2025-07-18 23:28:32,402 - DispatchApp - INFO - Application closing.
+2025-07-18 23:28:38,184 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:28:40,402 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:28:42,003 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:28:43,357 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:28:55,426 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:28:58,382 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:29:02,462 - DispatchApp - INFO - Call added: DC25-0031
+2025-07-18 23:29:03,581 - DispatchApp - INFO - Call added: DC25-0032
+2025-07-18 23:29:44,347 - DispatchApp - INFO - Application closing.
+2025-07-18 23:29:44,347 - DispatchApp - INFO - Application closing.
+2025-07-18 23:29:49,764 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:29:53,761 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:30:00,823 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:30:02,209 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:30:17,234 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:30:20,331 - DispatchApp - INFO - Call added: DC25-0033
+2025-07-18 23:33:04,744 - DispatchApp - INFO - Application closing.
+2025-07-18 23:33:04,744 - DispatchApp - INFO - Application closing.
+2025-07-18 23:33:08,356 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:33:10,410 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:33:13,069 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:33:14,049 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:33:25,433 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:33:29,078 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:33:34,076 - DispatchApp - INFO - Call added: DC25-0034
+2025-07-18 23:33:35,012 - DispatchApp - INFO - Call added: DC25-0035
+2025-07-18 23:35:11,724 - DispatchApp - INFO - Call added: DC25-0036
+2025-07-18 23:35:26,720 - DispatchApp - INFO - Call added: DC25-0037
+2025-07-18 23:38:16,731 - DispatchApp - INFO - Application closing.
+2025-07-18 23:38:36,074 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:38:37,365 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:38:47,792 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:38:49,588 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:39:04,611 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:39:07,397 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:39:14,454 - DispatchApp - INFO - Call added: DC25-0038
+2025-07-18 23:39:15,586 - DispatchApp - INFO - Call added: DC25-0039
+2025-07-18 23:42:18,414 - DispatchApp - INFO - Application closing.
+2025-07-18 23:42:18,414 - DispatchApp - INFO - Application closing.
+2025-07-18 23:42:21,135 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:42:23,212 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:42:26,535 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:42:27,641 - DispatchApp - INFO - User 'ken' logged in as 'admin'. Building UI.
+2025-07-18 23:42:38,235 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:42:39,689 - DispatchApp - INFO - Call added: DC25-0040
+2025-07-18 23:42:51,823 - DispatchApp - INFO - Call added: DC25-0041
+2025-07-18 23:43:24,593 - DispatchApp - INFO - Application closing.
+2025-07-18 23:43:25,723 - DispatchApp - INFO - Application closing.
+2025-07-18 23:45:24,577 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:45:28,612 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:45:34,083 - DispatchApp - INFO - Call modified: DC25-0006
+2025-07-18 23:45:36,419 - DispatchApp - INFO - Call modified: DC25-0006
+2025-07-18 23:45:36,939 - DispatchApp - INFO - Call modified: DC25-0006
+2025-07-18 23:45:42,110 - DispatchApp - INFO - Application closing.
+2025-07-18 23:46:42,217 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:46:43,763 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:47:12,347 - DispatchApp - INFO - Call modified: DC25-0037
+2025-07-18 23:48:37,531 - DispatchApp - INFO - Application closing.
+2025-07-18 23:50:01,167 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:50:03,155 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:50:08,317 - DispatchApp - INFO - Call added: DC25-0001
+2025-07-18 23:50:13,204 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:50:14,819 - DispatchApp - INFO - Red-flag status toggled for call: DC25-0001
+2025-07-18 23:50:49,229 - DispatchApp - INFO - Red-flag status toggled for call: DC25-0001
+2025-07-18 23:51:14,328 - DispatchApp - INFO - Call marked as deleted: DC25-0001
+2025-07-18 23:51:38,328 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:53:30,063 - DispatchApp - INFO - Application closing.
+2025-07-18 23:53:36,537 - DispatchApp - INFO - Application starting up.
+2025-07-18 23:53:39,488 - DispatchApp - INFO - User 'ant' logged in as 'admin'. Building UI.
+2025-07-18 23:53:43,969 - DispatchApp - INFO - Call restored: DC25-0001
+2025-07-18 23:53:59,405 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:54:09,517 - DispatchApp - INFO - Auto-refresh skipped due to unsaved changes in the form.
+2025-07-18 23:54:09,895 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:54:18,046 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:54:28,062 - DispatchApp - INFO - Call modified: DC25-0001
+2025-07-18 23:54:35,943 - DispatchApp - INFO - Call added: DC25-0002
+2025-07-18 23:54:39,470 - DispatchApp - INFO - Call added: DC25-0003
+2025-07-18 23:54:40,235 - DispatchApp - INFO - Call added: DC25-0004
+2025-07-18 23:54:40,970 - DispatchApp - INFO - Call added: DC25-0005
+2025-07-18 23:54:45,728 - DispatchApp - INFO - Call added: DC25-0006
+2025-07-18 23:54:46,441 - DispatchApp - INFO - Call added: DC25-0007
+2025-07-18 23:54:47,055 - DispatchApp - INFO - Call added: DC25-0008
+2025-07-18 23:54:47,751 - DispatchApp - INFO - Call added: DC25-0009
+2025-07-18 23:54:53,963 - DispatchApp - INFO - Red-flag status toggled for call: DC25-0001
+2025-07-18 23:55:24,421 - DispatchApp - INFO - Call modified: DC25-0005
+2025-07-18 23:55:39,250 - DispatchApp - INFO - Application closing.

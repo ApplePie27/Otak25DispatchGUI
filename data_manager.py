@@ -112,16 +112,54 @@ class DataManager:
         
         return report_id
 
+    # --- ARCHITECTURAL ENHANCEMENT ---
+    # The modify_call method is now re-architected to generate detailed audit logs.
     def modify_call(self, report_id, updated_call, current_user):
-        """Modify an existing call."""
+        """Modify an existing call and log the specific changes made."""
         original_call = self.get_call_by_id(report_id)
         if not original_call:
             raise ValueError(f"No call found with ReportID: {report_id}")
             
-        if updated_call["ResolutionStatus"] and not original_call["ResolutionStatus"]:
+        modification_details = []
+        
+        # 1. Check for changes in standard text fields
+        fields_to_check = ['InputMedium', 'Source', 'Caller', 'Location', 'Code']
+        for field in fields_to_check:
+            old_val = str(original_call[field])
+            new_val = str(updated_call[field])
+            if old_val != new_val:
+                modification_details.append(f"{field}: '{old_val}' -> '{new_val}'")
+        
+        # 2. Check for change in the multi-line description field
+        if original_call['Description'].strip() != updated_call['Description'].strip():
+            modification_details.append("Description was updated.")
+
+        # 3. Handle the primary action of RESOLVING a call
+        is_newly_resolved = updated_call["ResolutionStatus"] and not original_call["ResolutionStatus"]
+        if is_newly_resolved:
             updated_call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             self._log_history(report_id, current_user, "Call Resolved", f"Resolved by: {updated_call['ResolvedBy']}")
         
+        # 4. Handle other changes related to resolution status
+        else:
+            # Check if a call was UN-resolved
+            if not updated_call["ResolutionStatus"] and original_call["ResolutionStatus"]:
+                modification_details.append("Status: 'Resolved' -> 'Un-resolved'")
+                updated_call["ResolvedBy"] = "" # Clear the resolver when un-resolving
+                updated_call["ResolutionTimestamp"] = ""
+
+            # Check if the 'ResolvedBy' was changed on an already resolved call
+            elif updated_call["ResolutionStatus"] and (original_call['ResolvedBy'] != updated_call['ResolvedBy']):
+                old_resolver = original_call['ResolvedBy']
+                new_resolver = updated_call['ResolvedBy']
+                modification_details.append(f"ResolvedBy: '{old_resolver}' -> '{new_resolver}'")
+
+        # 5. If any modifications were detected, log them.
+        if modification_details:
+            details_string = "; ".join(modification_details)
+            self._log_history(report_id, current_user, "Call Modified", details_string)
+        
+        # 6. Finally, commit the update to the database
         updated_call['ModifiedBy'] = current_user
         
         with self.conn:
@@ -137,8 +175,8 @@ class DataManager:
                 updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
                 updated_call['ModifiedBy'], report_id
             ))
-            self._log_history(report_id, current_user, "Call Modified")
         return True
+
 
     def _update_call_flag(self, report_id, user, field, value, log_action):
         """Generic helper to update a boolean flag on a call."""

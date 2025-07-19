@@ -16,17 +16,26 @@ class ToolTip:
         self.tooltip = None
         self.widget.bind("<Enter>", self.show_tooltip)
         self.widget.bind("<Leave>", self.hide_tooltip)
+
     def show_tooltip(self, event):
-        x, y, _, _ = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 25
-        y += self.widget.winfo_rooty() + 25
+        if self.tooltip:
+            return
+            
+        x = event.x_root + 20
+        y = event.y_root + 10
+        
         self.tooltip = tk.Toplevel(self.widget)
         self.tooltip.wm_overrideredirect(True)
-        self.tooltip.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", relief="solid", borderwidth=1, font=("tahoma", "8", "normal"))
-        label.pack(ipadx=1)
+        self.tooltip.wm_geometry(f"+{int(x)}+{int(y)}")
+        
+        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", relief="solid", 
+                         borderwidth=1, font=("tahoma", "8", "normal"),
+                         wraplength=300, justify='left')
+        label.pack(ipadx=2, ipady=2)
+
     def hide_tooltip(self, event):
-        if self.tooltip: self.tooltip.destroy()
+        if self.tooltip:
+            self.tooltip.destroy()
         self.tooltip = None
 
 class ScrolledTextHandler(logging.Handler):
@@ -93,15 +102,17 @@ class DispatchCallApp:
     def load_config(self):
         self.config.read('config.ini')
         self.auto_refresh_interval_ms = self.config.getint('APPLICATION', 'auto_refresh_seconds', fallback=30) * 1000
+        
+        self.auto_scroll_var = tk.BooleanVar(
+            value=self.config.getboolean('APPLICATION', 'auto_scroll_to_latest', fallback=True)
+        )
+
         self.max_backups = self.config.getint('BACKUP', 'max_backups', fallback=10)
         
-        # Build mapping for codes, handling potential for complex keys
         self.code_descriptions = dict(self.config.items('CODES')) if self.config.has_section('CODES') else {}
         if not self.code_descriptions:
             self.code_descriptions = {"no_code": "No specific code assigned."}
         
-        # display_to_config_map: 'Signal 13 | Mayday' -> 'signal_13 | mayday'
-        # config_to_display_map: 'signal_13 | mayday' -> 'Signal 13 | Mayday'
         self.display_to_config_map = {key.replace('_', ' ').title(): key for key in self.code_descriptions.keys()}
         self.config_to_display_map = {v: k for k, v in self.display_to_config_map.items()}
 
@@ -200,7 +211,6 @@ class DispatchCallApp:
         code_cb.grid(row=3, column=1, padx=5, pady=2, sticky="w")
         code_cb.bind("<<ComboboxSelected>>", self.update_code_description)
         
-        # Set default code
         no_code_display = self.config_to_display_map.get("no_code", "")
         if no_code_display and no_code_display in formatted_codes:
             self.code_var.set(no_code_display)
@@ -218,6 +228,7 @@ class DispatchCallApp:
         ttk.Label(res_frame, text="Resolved By:").pack(side="left", padx=(0, 5))
         self.resolved_by_entry = ttk.Entry(res_frame, textvariable=self.resolved_by_var, state="disabled", width=uniform_width)
         self.resolved_by_entry.pack(side="left")
+
         self.update_code_description()
 
     def update_source_options(self, event=None):
@@ -229,30 +240,43 @@ class DispatchCallApp:
     def create_buttons(self):
         buttons_frame = ttk.Frame(self.root)
         buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
-        add_btn = ttk.Button(buttons_frame, text="Add Call", command=self.add_call)
-        add_btn.grid(row=0, column=0, padx=5, pady=5)
-        ToolTip(add_btn, "Add a new call with the details above.")
-        save_btn = ttk.Button(buttons_frame, text="Save Modification", command=self.modify_call)
-        save_btn.grid(row=0, column=1, padx=5, pady=5)
-        ToolTip(save_btn, "Save changes to the selected call (Ctrl+S).")
+        
+        self.add_button = ttk.Button(buttons_frame, text="Add Call", command=self.add_call)
+        self.add_button.grid(row=0, column=0, padx=5, pady=5)
+        ToolTip(self.add_button, "Add a new call with the details above.")
+        
+        self.save_button = ttk.Button(buttons_frame, text="Save Modification", command=self.modify_call)
+        self.save_button.grid(row=0, column=1, padx=5, pady=5)
+        ToolTip(self.save_button, "Save changes to the selected call (Ctrl+S).")
+        
         self.delete_button = ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call)
         self.delete_button.grid(row=0, column=2, padx=5, pady=5)
         ToolTip(self.delete_button, "Mark the selected call as deleted (Delete).\n(Admin only)")
-        clear_btn = ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields)
-        clear_btn.grid(row=0, column=3, padx=5, pady=5)
-        ToolTip(clear_btn, "Clear all input fields (Ctrl+N).")
-        red_flag_btn = ttk.Button(buttons_frame, text="Red Flag", command=self.red_flag_call)
-        red_flag_btn.grid(row=0, column=4, padx=5, pady=5)
-        ToolTip(red_flag_btn, "Toggle a red flag on the selected call.")
-        toggle_del_btn = ttk.Button(buttons_frame, text="Show Deleted", command=self.toggle_deleted)
-        toggle_del_btn.grid(row=0, column=5, padx=5, pady=5)
-        ToolTip(toggle_del_btn, "Toggle visibility of deleted calls.")
+        
+        self.clear_button = ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields)
+        self.clear_button.grid(row=0, column=3, padx=5, pady=5)
+        ToolTip(self.clear_button, "Clear all input fields (Ctrl+N).")
+        
+        self.red_flag_button = ttk.Button(buttons_frame, text="Red Flag", command=self.red_flag_call)
+        self.red_flag_button.grid(row=0, column=4, padx=5, pady=5)
+        ToolTip(self.red_flag_button, "Toggle a red flag on the selected call.")
+        
+        self.toggle_deleted_button = ttk.Button(buttons_frame, text="Show Deleted", command=self.toggle_deleted)
+        self.toggle_deleted_button.grid(row=0, column=5, padx=5, pady=5)
+        ToolTip(self.toggle_deleted_button, "Toggle visibility of deleted calls.")
+        
         self.restore_button = ttk.Button(buttons_frame, text="Restore Call", command=self.restore_call)
         self.restore_button.grid(row=0, column=6, padx=5, pady=5)
         ToolTip(self.restore_button, "Restore a call that was marked as deleted.\n(Admin only)")
-        history_btn = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
-        history_btn.grid(row=0, column=7, padx=5, pady=5)
-        ToolTip(history_btn, "View the audit history for the selected call.")
+        
+        self.history_button = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
+        self.history_button.grid(row=0, column=7, padx=5, pady=5)
+        ToolTip(self.history_button, "View the audit history for the selected call.")
+
+        self.action_buttons = [
+            self.add_button, self.save_button, self.delete_button, self.clear_button, 
+            self.red_flag_button, self.toggle_deleted_button, self.restore_button, self.history_button
+        ]
 
     def create_table(self):
         self.columns = {
@@ -285,20 +309,23 @@ class DispatchCallApp:
         self.table.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
-
     def sort_table(self, col):
         if self.sort_column == col: self.sort_direction = "DESC" if self.sort_direction == "ASC" else "ASC"
         else: self.sort_column, self.sort_direction = col, "ASC"
-        self.update_table()
+        self.update_table(update_behavior='preserve')
 
     def create_search_bar(self):
         search_frame = ttk.Frame(self.root)
         search_frame.grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-        ttk.Label(search_frame, text="Search:").grid(row=0, column=0, sticky="w")
+        ttk.Label(search_frame, text="Search:").grid(row=0, column=0, sticky="w", padx=(0,5))
         self.search_var = tk.StringVar()
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=40)
         search_entry.grid(row=0, column=1, padx=5, sticky="w")
         search_entry.bind("<KeyRelease>", lambda e: self.on_search())
+        
+        scroll_check = ttk.Checkbutton(search_frame, text="Auto-Scroll to Latest", variable=self.auto_scroll_var)
+        scroll_check.grid(row=0, column=2, padx=(20, 5), sticky="w")
+        ToolTip(scroll_check, "If checked, the table will automatically scroll to the latest entry during a refresh.")
 
     def configure_grid_weights(self):
         self.root.grid_rowconfigure(2, weight=1)
@@ -310,16 +337,26 @@ class DispatchCallApp:
         
         description = "Unknown Code"
         if config_key and config_key in self.code_descriptions:
-            # Safely get the description part after the last '|'
             description = self.code_descriptions[config_key].rsplit('|', 1)[-1].strip()
         
         self.code_description_var.set(description)
-
 
     def toggle_resolver_entry(self):
         state = "normal" if self.resolution_status_var.get() else "disabled"
         self.resolved_by_entry.configure(state=state)
         if state == "disabled": self.resolved_by_var.set("")
+
+    def _set_ui_busy(self, is_busy):
+        """Disables or enables action buttons and updates the status bar."""
+        state = "disabled" if is_busy else "normal"
+        for button in self.action_buttons:
+            button.config(state=state)
+        
+        if is_busy:
+            self.status_var.set("Working...")
+        else:
+            self.status_var.set("Ready")
+            self._apply_permissions()
 
     def _validate_fields(self):
         if not self.caller_var.get().strip():
@@ -337,12 +374,16 @@ class DispatchCallApp:
         return True
 
     def _run_in_thread(self, target, callback, *args):
+        self._set_ui_busy(True)
         def worker():
             try:
                 result = target(*args)
                 if self.root.winfo_exists(): self.root.after(0, callback, True, result)
             except Exception as e:
                 if self.root.winfo_exists(): self.root.after(0, callback, False, e)
+            finally:
+                if self.root.winfo_exists():
+                    self.root.after(0, self._set_ui_busy, False)
         threading.Thread(target=worker, daemon=True).start()
 
     def add_call(self):
@@ -355,15 +396,14 @@ class DispatchCallApp:
         }
         self._run_in_thread(self.manager.add_call, self._on_add_call_complete, call_data, self.current_user)
 
-    def _on_add_call_complete(self, success, result):
+    def _on_add_call_complete(self, success, new_report_id):
         if success:
-            self.logger.info(f"Call added: {result}")
+            self.logger.info(f"Call added: {new_report_id}")
             self.is_dirty = False
-            self.update_table()
-            self.clear_input_fields()
+            self.update_table(update_behavior='focus', target_id=new_report_id, was_added=True)
         else:
-            self.logger.error(f"Failed to add call: {result}")
-            messagebox.showerror("Database Error", f"Failed to add call: {result}")
+            self.logger.error(f"Failed to add call: {new_report_id}")
+            messagebox.showerror("Database Error", f"Failed to add call: {new_report_id}")
 
     def modify_call(self):
         if not self.table.selection():
@@ -404,8 +444,8 @@ class DispatchCallApp:
         if success:
             self.logger.info(log_message)
             self.is_dirty = False
-            self.update_table()
             self.clear_input_fields()
+            self.update_table()
         else:
             self.logger.error(f"Action failed: {result_or_error}")
             messagebox.showerror("Error", f"Action failed: {result_or_error}")
@@ -453,7 +493,7 @@ class DispatchCallApp:
             return
         self.is_loading_data = True
         try:
-            if self.table.selection(): self.table.selection_remove(self.table.selection()[0])
+            self.table.selection_remove(self.table.selection())
             self.caller_var.set("")
             self.location_var.set("")
             self.description_entry.delete("1.0", tk.END)
@@ -472,7 +512,11 @@ class DispatchCallApp:
     def export_report(self):
         filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
         if not filename: return
-        self._run_in_thread(self.manager.get_all_calls, lambda s, r: self._on_export_data_fetched(s, r, filename))
+        # --- BUG FIX ---
+        # Correctly pass the sort parameters to the background task.
+        self._run_in_thread(self.manager.get_all_calls, 
+                             lambda s, r: self._on_export_data_fetched(s, r, filename), 
+                             self.sort_column, self.sort_direction)
 
     def _on_export_data_fetched(self, success, calls, filename):
         if not success:
@@ -508,15 +552,16 @@ class DispatchCallApp:
         else:
             self.current_user = original_user
 
-    def update_table(self):
-        """Fetches data and updates the table, preserving selection and scroll position."""
-        pre_refresh_selected_id = None
+    def update_table(self, update_behavior='preserve', target_id=None, was_added=False):
+        pre_selection_id = None
         if self.table.selection():
-            pre_refresh_selected_id = self.table.item(self.table.selection()[0])['values'][0]
-        
+            pre_selection_id = self.table.item(self.table.selection()[0])['values'][0]
+
         pre_refresh_yview = self.table.yview()
 
-        callback = lambda s, r: self._on_update_table_data_fetched(s, r, pre_refresh_selected_id, pre_refresh_yview)
+        callback = lambda s, r: self._on_update_table_data_fetched(
+            s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview
+        )
         
         self._run_in_thread(
             self.manager.get_all_calls, 
@@ -524,15 +569,17 @@ class DispatchCallApp:
             self.sort_column, 
             self.sort_direction
         )
-
-    def _on_update_table_data_fetched(self, success, all_calls, pre_refresh_selected_id, pre_refresh_yview):
+        
+    def _on_update_table_data_fetched(self, success, all_calls, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview):
         if not success:
             self.logger.error(f"Failed to fetch table data for update: {all_calls}")
             return
 
+        self.table.unbind("<<TreeviewSelect>>")
         self.table.delete(*self.table.get_children())
+
+        item_map = {}
         filter_text = self.search_var.get().lower().strip()
-        new_selection_item_id = None
 
         for call_row in all_calls:
             call = dict(call_row)
@@ -546,27 +593,44 @@ class DispatchCallApp:
             
             values = [call.get(col, "") for col in self.columns.keys()]
             values[4] = "True" if values[4] else "False"
-            
             db_code = values[9] 
             values[9] = self.config_to_display_map.get(db_code, db_code) 
             
             item_id = self.table.insert("", tk.END, values=values, tags=tags)
-            
-            if pre_refresh_selected_id and values[0] == pre_refresh_selected_id:
-                new_selection_item_id = item_id
+            item_map[values[0]] = item_id
 
-        if new_selection_item_id:
-            self.table.selection_set(new_selection_item_id)
-            self.table.focus(new_selection_item_id)
-            self.table.see(new_selection_item_id)
+        if update_behavior == 'focus':
+            if target_id and target_id in item_map:
+                item_to_focus = item_map[target_id]
+                self.table.selection_set(item_to_focus)
+                self.table.focus(item_to_focus)
+                self.table.see(item_to_focus)
+            if was_added:
+                self.clear_input_fields()
         
-        self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
+        elif update_behavior == 'scroll_to_end':
+            if pre_selection_id and pre_selection_id in item_map:
+                self.table.selection_set(item_map[pre_selection_id])
+            
+            if self.table.get_children():
+                last_item = self.table.get_children()[-1]
+                self.table.see(last_item)
+        
+        else: # 'preserve' behavior
+            if pre_selection_id and pre_selection_id in item_map:
+                self.table.selection_set(item_map[pre_selection_id])
+            
+            self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
 
-    def on_search(self, event=None): self.update_table()
+        self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
+
+    def on_search(self, event=None): self.update_table(update_behavior='preserve')
     
     def start_backup_timer(self): self.root.after(900 * 1000, self.create_backup)
 
     def create_backup(self):
+        # --- BUG FIX ---
+        # Correctly pass arguments to the background task.
         self._run_in_thread(self.manager.create_backup, self._on_backup_complete, "backups", self.max_backups)
 
     def _on_backup_complete(self, success, result_or_error):
@@ -577,16 +641,17 @@ class DispatchCallApp:
             self.start_backup_timer()
 
     def start_auto_refresh(self):
-        """Schedules the next auto-refresh task."""
         self._auto_refresh_job = self.root.after(self.auto_refresh_interval_ms, self._auto_refresh_task)
 
     def _auto_refresh_task(self):
-        """The core logic for the auto-refresh task. Skips if user has unsaved changes."""
         if self.is_dirty:
-            self.logger.info("Auto-refresh skipped due to unsaved changes in the form.")
+            self.logger.debug("Auto-refresh skipped due to unsaved changes in the form.")
         else:
             self.logger.debug("Performing automatic table refresh.")
-            self.update_table()
+            if self.auto_scroll_var.get():
+                self.update_table(update_behavior='scroll_to_end')
+            else:
+                self.update_table(update_behavior='preserve')
         
         self.start_auto_refresh()
 
@@ -595,6 +660,8 @@ class DispatchCallApp:
             messagebox.showwarning("Selection Error", "No call selected.")
             return
         report_id = self.table.item(self.table.selection()[0])["values"][0]
+        # --- BUG FIX ---
+        # Correctly pass the report_id to the background task.
         self._run_in_thread(self.manager.get_history_for_call, lambda s, r: self._on_history_fetched(s, r, report_id), report_id)
 
     def _on_history_fetched(self, success, records, report_id):
