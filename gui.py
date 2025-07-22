@@ -113,7 +113,7 @@ class DispatchCallApp:
         if not self.code_descriptions:
             self.code_descriptions = {"no_code": "No specific code assigned."}
         
-        self.display_to_config_map = {self.config.get('CODES', key).split('|')[0].strip(): key for key in self.config.options('CODES')}
+        self.display_to_config_map = {key.split('|')[0].strip(): key for key in self.config.options('CODES')}
         self.config_to_display_map = {v: k for k, v in self.display_to_config_map.items()}
 
         self.source_options = {}
@@ -483,7 +483,8 @@ class DispatchCallApp:
             self.caller_var.set(call.get("Caller", ""))
             self.location_var.set(call.get("Location", ""))
             
-            display_code = call.get("Code", "")
+            db_code = self.display_to_config_map.get(call.get("Code", ""), call.get("Code", ""))
+            display_code = self.config_to_display_map.get(db_code, db_code)
             self.code_var.set(display_code)
 
             self.update_code_description()

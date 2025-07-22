@@ -415,3 +415,9 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-19 01:19:54,787 - DispatchApp - INFO - Call added: DC25-0010
 2025-07-19 01:19:58,003 - DispatchApp - INFO - Call added: DC25-0011
 2025-07-19 01:20:21,058 - DispatchApp - INFO - Application closing.
+2025-07-21 23:33:19,937 - DispatchApp - INFO - Application starting up.
+2025-07-21 23:33:29,122 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-21 23:33:55,814 - DispatchApp - INFO - Application closing.
+2025-07-21 23:33:59,847 - DispatchApp - INFO - Application starting up.
+2025-07-21 23:34:03,754 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
+2025-07-21 23:34:07,447 - DispatchApp - INFO - Application closing.
