@@ -155,8 +155,7 @@ class DispatchCallApp:
         admin_state = "normal" if is_admin else "disabled"
         self.delete_button.config(state=admin_state)
         self.restore_button.config(state=admin_state)
-        self.file_menu.entryconfig("Change User", state=admin_state)
-
+        
     def _setup_keyboard_shortcuts(self):
         self.root.bind('<Control-s>', lambda event: self.modify_call())
         self.root.bind('<Control-n>', lambda event: self.clear_input_fields())
@@ -243,7 +242,7 @@ class DispatchCallApp:
         ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolved_entry).grid(row=6, column=0, padx=5, pady=5, sticky="w")
         resolved_frame = ttk.Frame(fields_frame)
         resolved_frame.grid(row=6, column=1, columnspan=3, padx=5, pady=5, sticky="w")
-        ttk.Label(resolved_frame, text="Resolved By:").pack(side="left", padx=(0, 5))
+        ttk.Label(resolved_frame, text="Resolved By:  ").pack(side="left", padx=(0, 4))
         self.resolved_by_entry = ttk.Entry(resolved_frame, textvariable=self.resolved_by_var, state="disabled", width=uniform_width)
         self.resolved_by_entry.pack(side="left")
 
@@ -302,8 +301,8 @@ class DispatchCallApp:
     def create_table(self):
         self.columns = {
             "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60),
-            "AnsweredTimestamp": ("Answered At", 120), "AnsweredStatus": ("Answered?", 70), "AnsweredBy": ("Answered By", 100),
-            "ResolutionTimestamp": ("Resolved At", 120), "ResolutionStatus": ("Resolved?", 70), "ResolvedBy": ("Resolved By", 100),
+            "AnsweredStatus": ("Answered?", 70), "AnsweredTimestamp": ("Answered At", 120), "AnsweredBy": ("Answered By", 100),
+            "ResolutionStatus": ("Resolved?", 70), "ResolutionTimestamp": ("Resolved At", 120), "ResolvedBy": ("Resolved By", 100),
             "InputMedium": ("Medium", 100), "Source": ("Source", 100), "Caller": ("Caller", 100),
             "Location": ("Location", 120), "Code": ("Code", 150), "Description": ("Description", 300),
             "CreatedBy": ("Created By", 100), "ModifiedBy": ("Modified By", 100), "ReportNumber": ("Report #", 100)
@@ -322,8 +321,8 @@ class DispatchCallApp:
         self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=self.scrollbar.set)
         
-        self.table.tag_configure("answered", background="#f5f5dc")
-        self.table.tag_configure("resolved", background="#d0f0c0")
+        self.table.tag_configure("answered", background="#FFFFE0")  # Light yellow for answered
+        self.table.tag_configure("resolved", background="#d0f0c0")  # Green for resolved
         self.table.tag_configure("redflag", background="#f08080")
         self.table.tag_configure("deleted", foreground="#a9a9a9")
         
@@ -634,6 +633,9 @@ class DispatchCallApp:
 
         item_map = {}
         filter_text = self.search_var.get().lower().strip()
+        
+        # Define the order of keys for display
+        display_keys = list(self.columns.keys())
 
         for call_row in all_calls:
             call = dict(call_row)
@@ -641,16 +643,27 @@ class DispatchCallApp:
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
             tags = []
-            if call.get('AnsweredStatus'): tags.append("answered")
-            if call.get('ResolutionStatus'): tags.append("resolved")
+            
+            # Apply tags based on priority
+            if call.get('ResolutionStatus'):
+                tags.append("resolved")
+            elif call.get('AnsweredStatus'):
+                tags.append("answered")
+            
             if call.get('RedFlag'): tags.append("redflag")
             if call.get('Deleted'): tags.append("deleted")
             
-            values = [call.get(col, "") for col in self.columns.keys()]
-            values[4] = "True" if values[4] else "False"
-            values[7] = "True" if values[7] else "False"
-            db_code = values[13] 
-            values[13] = self.config_to_display_map.get(db_code, db_code) 
+            values = []
+            for key in display_keys:
+                if key == "AnsweredStatus":
+                    values.append("True" if call.get(key) else "False")
+                elif key == "ResolutionStatus":
+                    values.append("True" if call.get(key) else "False")
+                elif key == "Code":
+                    db_code = call.get(key, "")
+                    values.append(self.config_to_display_map.get(db_code, db_code))
+                else:
+                    values.append(call.get(key, ""))
             
             item_id = self.table.insert("", tk.END, values=values, tags=tags)
             item_map[values[0]] = item_id
