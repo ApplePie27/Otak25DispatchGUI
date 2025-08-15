@@ -278,10 +278,7 @@ class DispatchCallApp:
             self.red_flag_button, self.toggle_deleted_button, self.restore_button, self.history_button
         ]
 
-    # --- FEATURE IMPLEMENTATION ---
-    # New method to handle manual scroll events.
     def _on_manual_scroll(self, event=None):
-        """Called when the user manually scrolls, unchecking the auto-scroll box."""
         self.auto_scroll_var.set(False)
 
     def create_table(self):
@@ -313,8 +310,6 @@ class DispatchCallApp:
         
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
         
-        # --- FEATURE IMPLEMENTATION ---
-        # Bind manual scroll events to the new handler.
         self.table.bind("<MouseWheel>", self._on_manual_scroll)
         self.scrollbar.bind("<ButtonPress-1>", self._on_manual_scroll)
         self.scrollbar.bind("<B1-Motion>", self._on_manual_scroll)
@@ -366,7 +361,6 @@ class DispatchCallApp:
         else:
             self.status_var.set("Ready")
             self._apply_permissions()
-            # If a call is selected, the "Add Call" button should be disabled.
             if self.table.selection():
                 self.add_button.config(state="disabled")
 
@@ -438,7 +432,7 @@ class DispatchCallApp:
                 report_id = self.table.item(self.table.selection()[0])["values"][0]
                 self.logger.info(f"Call modified: {report_id}")
             self.is_dirty = False
-            self.update_table()
+            self.update_table(clear_fields=True)
         else:
             self.logger.error(f"Failed to modify call: {result_or_error}")
             messagebox.showerror("Database Error", f"Failed to modify call: {result_or_error}")
@@ -472,8 +466,6 @@ class DispatchCallApp:
                 return "break"
         if not self.table.selection(): return
         
-        # --- FEATURE IMPLEMENTATION ---
-        # Disable the Add button as soon as a selection is made.
         self.add_button.config(state="disabled")
 
         item = self.table.item(self.table.selection()[0])
@@ -524,8 +516,6 @@ class DispatchCallApp:
 
             self.update_code_description()
             
-            # --- FEATURE IMPLEMENTATION ---
-            # Re-enable the Add button only when the form is explicitly cleared.
             self.add_button.config(state="normal")
         finally:
             self.is_loading_data = False
@@ -572,7 +562,7 @@ class DispatchCallApp:
         else:
             self.current_user = original_user
 
-    def update_table(self, update_behavior='preserve', target_id=None, was_added=False):
+    def update_table(self, update_behavior='preserve', target_id=None, was_added=False, clear_fields=False):
         pre_selection_id = None
         if self.table.selection():
             pre_selection_id = self.table.item(self.table.selection()[0])['values'][0]
@@ -580,7 +570,7 @@ class DispatchCallApp:
         pre_refresh_yview = self.table.yview()
 
         callback = lambda s, r: self._on_update_table_data_fetched(
-            s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview
+            s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields
         )
         
         self._run_in_thread(
@@ -590,7 +580,7 @@ class DispatchCallApp:
             self.sort_direction
         )
         
-    def _on_update_table_data_fetched(self, success, all_calls, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview):
+    def _on_update_table_data_fetched(self, success, all_calls, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields):
         if not success:
             self.logger.error(f"Failed to fetch table data for update: {all_calls}")
             return
@@ -640,8 +630,12 @@ class DispatchCallApp:
             if pre_selection_id and pre_selection_id in item_map:
                 self.table.selection_set(item_map[pre_selection_id])
             
-            self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
-
+            if pre_refresh_yview and pre_refresh_yview[0] is not None:
+                self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
+                
+        if clear_fields:
+            self.clear_input_fields()
+        
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
 
     def on_search(self, event=None): self.update_table(update_behavior='preserve')
