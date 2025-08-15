@@ -504,3 +504,4 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-08-14 21:26:15,961 - DispatchApp - INFO - Application closing.
 2025-08-14 21:26:18,518 - DispatchApp - INFO - Application starting up.
 2025-08-14 21:26:20,556 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2025-08-14 21:27:27,551 - DispatchApp - INFO - Application closing.
