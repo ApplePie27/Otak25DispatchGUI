@@ -77,8 +77,13 @@ class DispatchCallApp:
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar()
         self.code_var = tk.StringVar()
+        
+        self.answered_status_var = tk.BooleanVar(value=False)
+        self.answered_by_var = tk.StringVar()
+        
         self.resolution_status_var = tk.BooleanVar(value=False)
         self.resolved_by_var = tk.StringVar()
+
         self.code_description_var = tk.StringVar()
         self.create_status_bar()
         self.create_log_area()
@@ -165,7 +170,10 @@ class DispatchCallApp:
         self.caller_var.trace_add("write", self._set_dirty_flag)
         self.location_var.trace_add("write", self._set_dirty_flag)
         self.code_var.trace_add("write", self._set_dirty_flag)
+        self.answered_status_var.trace_add("write", self._set_dirty_flag)
+        self.resolved_by_var.trace_add("write", self._set_dirty_flag)
         self.resolution_status_var.trace_add("write", self._set_dirty_flag)
+        self.resolved_by_var.trace_add("write", self._set_dirty_flag)
         self.description_entry.bind("<KeyRelease>", self._set_dirty_flag)
         self.caller_var.trace_add("write", lambda *args: self.caller_var.set(self.caller_var.get().upper()))
 
@@ -222,11 +230,21 @@ class DispatchCallApp:
         ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=2, sticky="nw")
         self.description_entry = scrolledtext.ScrolledText(fields_frame, height=5, width=60, borderwidth=0)
         self.description_entry.grid(row=4, column=1, columnspan=4, padx=5, pady=2, sticky="w")
-        ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolver_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        res_frame = ttk.Frame(fields_frame)
-        res_frame.grid(row=5, column=1, columnspan=3, padx=5, pady=5, sticky="w")
-        ttk.Label(res_frame, text="Resolved By:").pack(side="left", padx=(0, 5))
-        self.resolved_by_entry = ttk.Entry(res_frame, textvariable=self.resolved_by_var, state="disabled", width=uniform_width)
+        
+        # New "Answered" section
+        ttk.Checkbutton(fields_frame, text="Answered", variable=self.answered_status_var, command=self.toggle_answered_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
+        answered_frame = ttk.Frame(fields_frame)
+        answered_frame.grid(row=5, column=1, columnspan=3, padx=5, pady=5, sticky="w")
+        ttk.Label(answered_frame, text="Answered By:").pack(side="left", padx=(0, 5))
+        self.answered_by_entry = ttk.Entry(answered_frame, textvariable=self.answered_by_var, state="disabled", width=uniform_width)
+        self.answered_by_entry.pack(side="left")
+
+        # Original "Resolved" section
+        ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolved_entry).grid(row=6, column=0, padx=5, pady=5, sticky="w")
+        resolved_frame = ttk.Frame(fields_frame)
+        resolved_frame.grid(row=6, column=1, columnspan=3, padx=5, pady=5, sticky="w")
+        ttk.Label(resolved_frame, text="Resolved By:").pack(side="left", padx=(0, 5))
+        self.resolved_by_entry = ttk.Entry(resolved_frame, textvariable=self.resolved_by_var, state="disabled", width=uniform_width)
         self.resolved_by_entry.pack(side="left")
 
         self.update_code_description()
@@ -284,11 +302,11 @@ class DispatchCallApp:
     def create_table(self):
         self.columns = {
             "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60),
-            "ResolutionTimestamp": ("Resolved At", 120), "ResolutionStatus": ("Resolved?", 70),
+            "AnsweredTimestamp": ("Answered At", 120), "AnsweredStatus": ("Answered?", 70), "AnsweredBy": ("Answered By", 100),
+            "ResolutionTimestamp": ("Resolved At", 120), "ResolutionStatus": ("Resolved?", 70), "ResolvedBy": ("Resolved By", 100),
             "InputMedium": ("Medium", 100), "Source": ("Source", 100), "Caller": ("Caller", 100),
             "Location": ("Location", 120), "Code": ("Code", 150), "Description": ("Description", 300),
-            "ResolvedBy": ("Resolved By", 100), "CreatedBy": ("Created By", 100),
-            "ModifiedBy": ("Modified By", 100), "ReportNumber": ("Report #", 100)
+            "CreatedBy": ("Created By", 100), "ModifiedBy": ("Modified By", 100), "ReportNumber": ("Report #", 100)
         }
         
         table_frame = ttk.Frame(self.root)
@@ -304,6 +322,7 @@ class DispatchCallApp:
         self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=self.scrollbar.set)
         
+        self.table.tag_configure("answered", background="#f5f5dc")
         self.table.tag_configure("resolved", background="#d0f0c0")
         self.table.tag_configure("redflag", background="#f08080")
         self.table.tag_configure("deleted", foreground="#a9a9a9")
@@ -345,7 +364,12 @@ class DispatchCallApp:
         description = self.code_descriptions.get(config_key, "Unknown Code").split('|', 1)[-1].strip()
         self.code_description_var.set(description)
 
-    def toggle_resolver_entry(self):
+    def toggle_answered_entry(self):
+        state = "normal" if self.answered_status_var.get() else "disabled"
+        self.answered_by_entry.configure(state=state)
+        if state == "disabled": self.answered_by_var.set("")
+
+    def toggle_resolved_entry(self):
         state = "normal" if self.resolution_status_var.get() else "disabled"
         self.resolved_by_entry.configure(state=state)
         if state == "disabled": self.resolved_by_var.set("")
@@ -374,6 +398,9 @@ class DispatchCallApp:
         if not self.description_entry.get("1.0", tk.END).strip():
             messagebox.showwarning("Validation Error", "Description cannot be empty.")
             return False
+        if self.answered_status_var.get() and not self.answered_by_var.get().strip():
+            messagebox.showwarning("Validation Error", "'Answered By' cannot be empty when marking as answered.")
+            return False
         if self.resolution_status_var.get() and not self.resolved_by_var.get().strip():
             messagebox.showwarning("Validation Error", "'Resolved By' cannot be empty when marking as resolved.")
             return False
@@ -398,7 +425,9 @@ class DispatchCallApp:
         call_data = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
-            "Code": raw_code, "Description": self.description_entry.get("1.0", tk.END).strip()
+            "Code": raw_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
+            "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
+            "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
         }
         self._run_in_thread(self.manager.add_call, self._on_add_call_complete, call_data, self.current_user)
 
@@ -422,6 +451,7 @@ class DispatchCallApp:
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
             "Code": raw_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
+            "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
             "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
         }
         self._run_in_thread(self.manager.modify_call, self._on_modify_call_complete, report_id, updated_call, self.current_user)
@@ -485,10 +515,19 @@ class DispatchCallApp:
             self.update_code_description()
             self.description_entry.delete("1.0", tk.END)
             self.description_entry.insert(tk.END, call.get("Description", ""))
+
+            # New answered fields
+            is_answered = str(call.get("AnsweredStatus", "False")).lower() in ('true', '1')
+            self.answered_status_var.set(is_answered)
+            self.toggle_answered_entry()
+            self.answered_by_var.set(call.get("AnsweredBy", ""))
+
+            # Original resolved fields
             is_resolved = str(call.get("ResolutionStatus", "False")).lower() in ('true', '1')
             self.resolution_status_var.set(is_resolved)
-            self.toggle_resolver_entry()
+            self.toggle_resolved_entry()
             self.resolved_by_var.set(call.get("ResolvedBy", ""))
+
         finally:
             self.is_loading_data = False
         self.is_dirty = False
@@ -507,10 +546,15 @@ class DispatchCallApp:
             self.caller_var.set("")
             self.location_var.set("")
             self.description_entry.delete("1.0", tk.END)
+            
+            self.answered_status_var.set(False)
+            self.answered_by_var.set("")
+            self.toggle_answered_entry()
+
             self.resolution_status_var.set(False)
             self.resolved_by_var.set("")
-            self.resolved_by_entry.configure(state="disabled")
-            
+            self.toggle_resolved_entry()
+
             no_code_display = self.config_to_display_map.get("no_code", "")
             if no_code_display: self.code_var.set(no_code_display)
 
@@ -597,14 +641,16 @@ class DispatchCallApp:
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
             tags = []
+            if call.get('AnsweredStatus'): tags.append("answered")
             if call.get('ResolutionStatus'): tags.append("resolved")
             if call.get('RedFlag'): tags.append("redflag")
             if call.get('Deleted'): tags.append("deleted")
             
             values = [call.get(col, "") for col in self.columns.keys()]
             values[4] = "True" if values[4] else "False"
-            db_code = values[9] 
-            values[9] = self.config_to_display_map.get(db_code, db_code) 
+            values[7] = "True" if values[7] else "False"
+            db_code = values[13] 
+            values[13] = self.config_to_display_map.get(db_code, db_code) 
             
             item_id = self.table.insert("", tk.END, values=values, tags=tags)
             item_map[values[0]] = item_id

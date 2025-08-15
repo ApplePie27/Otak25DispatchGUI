@@ -22,15 +22,18 @@ class DataManager:
                     ReportID TEXT UNIQUE,
                     CallDate TEXT,
                     CallTime TEXT,
+                    AnsweredTimestamp TEXT,
+                    AnsweredStatus BOOLEAN,
+                    AnsweredBy TEXT,
                     ResolutionTimestamp TEXT,
                     ResolutionStatus BOOLEAN,
+                    ResolvedBy TEXT,
                     InputMedium TEXT,
                     Source TEXT,
                     Caller TEXT,
                     Location TEXT,
                     Code TEXT,
                     Description TEXT,
-                    ResolvedBy TEXT,
                     CreatedBy TEXT,
                     ModifiedBy TEXT,
                     RedFlag BOOLEAN,
@@ -61,9 +64,10 @@ class DataManager:
     def get_all_calls(self, sort_by="ReportID", sort_order="ASC"):
         """Fetch all calls from the database, with sorting."""
         valid_columns = [
-            "ReportID", "CallDate", "CallTime", "ResolutionTimestamp", "ResolutionStatus",
+            "ReportID", "CallDate", "CallTime", "AnsweredTimestamp", "AnsweredStatus", "AnsweredBy",
+            "ResolutionTimestamp", "ResolutionStatus", "ResolvedBy",
             "InputMedium", "Source", "Caller", "Location", "Code", "Description",
-            "ResolvedBy", "CreatedBy", "ModifiedBy", "RedFlag", "Deleted", "ReportNumber"
+            "CreatedBy", "ModifiedBy", "RedFlag", "Deleted", "ReportNumber"
         ]
         if sort_by not in valid_columns:
             sort_by = "ReportID"
@@ -93,14 +97,15 @@ class DataManager:
             
             cursor.execute("""
                 INSERT INTO calls (
-                    CallDate, CallTime, ResolutionTimestamp, ResolutionStatus,
-                    InputMedium, Source, Caller, Location, Code, Description,
-                    ResolvedBy, CreatedBy, ModifiedBy, RedFlag, ReportNumber, Deleted
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    CallDate, CallTime, AnsweredTimestamp, AnsweredStatus, AnsweredBy,
+                    ResolutionTimestamp, ResolutionStatus, ResolvedBy, InputMedium, Source, 
+                    Caller, Location, Code, Description, CreatedBy, ModifiedBy, RedFlag,
+                    ReportNumber, Deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                now.strftime("%Y-%m-%d"), now.strftime("%H:%M"), "", False,
+                now.strftime("%Y-%m-%d"), now.strftime("%H:%M"), "", False, "", "", False, "",
                 call['InputMedium'], call['Source'], call['Caller'], call['Location'],
-                call['Code'], call['Description'], "", current_user, "", False, "", False
+                call['Code'], call['Description'], current_user, "", False, "", False
             ))
             
             new_id = cursor.lastrowid
@@ -112,8 +117,6 @@ class DataManager:
         
         return report_id
 
-    # --- ARCHITECTURAL ENHANCEMENT ---
-    # The modify_call method is now re-architected to generate detailed audit logs.
     def modify_call(self, report_id, updated_call, current_user):
         """Modify an existing call and log the specific changes made."""
         original_call = self.get_call_by_id(report_id)
@@ -121,8 +124,9 @@ class DataManager:
             raise ValueError(f"No call found with ReportID: {report_id}")
             
         modification_details = []
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
         
-        # 1. Check for changes in standard text fields
+        # Check for changes in standard text fields
         fields_to_check = ['InputMedium', 'Source', 'Caller', 'Location', 'Code']
         for field in fields_to_check:
             old_val = str(original_call[field])
@@ -130,49 +134,59 @@ class DataManager:
             if old_val != new_val:
                 modification_details.append(f"{field}: '{old_val}' -> '{new_val}'")
         
-        # 2. Check for change in the multi-line description field
+        # Check for change in the multi-line description field
         if original_call['Description'].strip() != updated_call['Description'].strip():
             modification_details.append("Description was updated.")
 
-        # 3. Handle the primary action of RESOLVING a call
+        # Handle RESOLVING a call
         is_newly_resolved = updated_call["ResolutionStatus"] and not original_call["ResolutionStatus"]
         if is_newly_resolved:
-            updated_call["ResolutionTimestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            updated_call["ResolutionTimestamp"] = now
             self._log_history(report_id, current_user, "Call Resolved", f"Resolved by: {updated_call['ResolvedBy']}")
-        
-        # 4. Handle other changes related to resolution status
         else:
-            # Check if a call was UN-resolved
             if not updated_call["ResolutionStatus"] and original_call["ResolutionStatus"]:
                 modification_details.append("Status: 'Resolved' -> 'Un-resolved'")
-                updated_call["ResolvedBy"] = "" # Clear the resolver when un-resolving
+                updated_call["ResolvedBy"] = "" 
                 updated_call["ResolutionTimestamp"] = ""
-
-            # Check if the 'ResolvedBy' was changed on an already resolved call
             elif updated_call["ResolutionStatus"] and (original_call['ResolvedBy'] != updated_call['ResolvedBy']):
                 old_resolver = original_call['ResolvedBy']
                 new_resolver = updated_call['ResolvedBy']
                 modification_details.append(f"ResolvedBy: '{old_resolver}' -> '{new_resolver}'")
 
-        # 5. If any modifications were detected, log them.
+        # Handle ANSWERING a call
+        is_newly_answered = updated_call["AnsweredStatus"] and not original_call["AnsweredStatus"]
+        if is_newly_answered:
+            updated_call["AnsweredTimestamp"] = now
+            self._log_history(report_id, current_user, "Call Answered", f"Answered by: {updated_call['AnsweredBy']}")
+        else:
+            if not updated_call["AnsweredStatus"] and original_call["AnsweredStatus"]:
+                modification_details.append("Status: 'Answered' -> 'Un-answered'")
+                updated_call["AnsweredBy"] = "" 
+                updated_call["AnsweredTimestamp"] = ""
+            elif updated_call["AnsweredStatus"] and (original_call['AnsweredBy'] != updated_call['AnsweredBy']):
+                old_answerer = original_call['AnsweredBy']
+                new_answerer = updated_call['AnsweredBy']
+                modification_details.append(f"AnsweredBy: '{old_answerer}' -> '{new_answerer}'")
+
         if modification_details:
             details_string = "; ".join(modification_details)
             self._log_history(report_id, current_user, "Call Modified", details_string)
         
-        # 6. Finally, commit the update to the database
         updated_call['ModifiedBy'] = current_user
         
         with self.conn:
             self.conn.execute("""
                 UPDATE calls SET
                 InputMedium=?, Source=?, Caller=?, Location=?, Code=?, Description=?,
-                ResolutionStatus=?, ResolvedBy=?, ResolutionTimestamp=?, ModifiedBy=?
+                AnsweredStatus=?, AnsweredBy=?, AnsweredTimestamp=?,
+                ResolutionStatus=?, ResolvedBy=?, ResolutionTimestamp=?,
+                ModifiedBy=?
                 WHERE ReportID=?
             """, (
                 updated_call['InputMedium'], updated_call['Source'], updated_call['Caller'],
                 updated_call['Location'], updated_call['Code'], updated_call['Description'],
-                updated_call['ResolutionStatus'], updated_call['ResolvedBy'],
-                updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
+                updated_call['AnsweredStatus'], updated_call['AnsweredBy'], updated_call.get('AnsweredTimestamp', original_call['AnsweredTimestamp']),
+                updated_call['ResolutionStatus'], updated_call['ResolvedBy'], updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
                 updated_call['ModifiedBy'], report_id
             ))
         return True
