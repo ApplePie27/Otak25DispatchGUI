@@ -366,6 +366,9 @@ class DispatchCallApp:
         else:
             self.status_var.set("Ready")
             self._apply_permissions()
+            # If a call is selected, the "Add Call" button should be disabled.
+            if self.table.selection():
+                self.add_button.config(state="disabled")
 
     def _validate_fields(self):
         if not self.caller_var.get().strip():

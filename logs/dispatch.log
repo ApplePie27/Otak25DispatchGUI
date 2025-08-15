@@ -427,3 +427,23 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-07-22 01:54:39,768 - DispatchApp - INFO - Application starting up.
 2025-07-22 01:54:42,053 - DispatchApp - INFO - User 'admin' logged in as 'admin'. Building UI.
 2025-07-22 01:55:22,620 - DispatchApp - INFO - Call added: DC25-0001
+2025-08-14 20:46:14,457 - DispatchApp - INFO - Application starting up.
+2025-08-14 20:48:42,961 - DispatchApp - WARNING - Login cancelled by user. Shutting down.
+2025-08-14 20:50:20,669 - DispatchApp - INFO - Application starting up.
+2025-08-14 20:50:22,655 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2025-08-14 20:50:25,645 - DispatchApp - INFO - Application closing.
+2025-08-14 20:50:32,488 - DispatchApp - INFO - Application starting up.
+2025-08-14 20:50:34,145 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2025-08-14 20:50:42,225 - DispatchApp - INFO - Call modified: DC25-0001
+2025-08-14 20:53:01,843 - DispatchApp - INFO - Application closing.
+2025-08-14 20:54:38,256 - DispatchApp - INFO - Application starting up.
+2025-08-14 20:54:40,291 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2025-08-14 20:54:43,141 - DispatchApp - INFO - Call modified: DC25-0001
+2025-08-14 20:54:47,458 - DispatchApp - INFO - Call added: DC25-0002
+2025-08-14 20:57:50,189 - DispatchApp - INFO - Application closing.
+2025-08-14 20:57:53,332 - DispatchApp - INFO - Application starting up.
+2025-08-14 20:57:54,927 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2025-08-14 20:57:57,635 - DispatchApp - INFO - Call modified: DC25-0001
+2025-08-14 20:58:07,886 - DispatchApp - INFO - Call modified: DC25-0002
+2025-08-14 20:58:17,922 - DispatchApp - INFO - Call added: DC25-0003
+2025-08-14 20:59:24,845 - DispatchApp - INFO - Application closing.
