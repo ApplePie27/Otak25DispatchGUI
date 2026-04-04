@@ -69,7 +69,6 @@ class DispatchCallApp:
         self.root.deiconify()
         
     def _build_main_ui(self):
-        self.show_deleted = False
         self.sort_column = "ReportID"
         self.sort_direction = "ASC"
         self.input_medium_var = tk.StringVar(value="Radio")
@@ -103,6 +102,8 @@ class DispatchCallApp:
         self.start_backup_timer()
         self.start_auto_refresh()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        self.root.bind("<Button-1>", self._on_click_outside)
 
     def load_config(self):
         self.config.read('config.ini')
@@ -114,12 +115,13 @@ class DispatchCallApp:
 
         self.max_backups = self.config.getint('BACKUP', 'max_backups', fallback=10)
         
-        self.code_descriptions = dict(self.config.items('CODES')) if self.config.has_section('CODES') else {}
-        if not self.code_descriptions:
-            self.code_descriptions = {"no_code": "No specific code assigned."}
-        
-        self.display_to_config_map = {key.split('|')[0].strip(): key for key in self.config.options('CODES')}
-        self.config_to_display_map = {v: k for k, v in self.display_to_config_map.items()}
+        self.desc_to_code_map = {}
+        if self.config.has_section('CODES'):
+            for desc, value in self.config.items('CODES'):
+                code_part = value.split('|')[0].strip()
+                self.desc_to_code_map[desc.strip()] = code_part
+        else:
+            self.desc_to_code_map = {"General situations": "No_Code"}
 
         self.source_options = {}
         if self.config.has_section('SOURCES'):
@@ -152,14 +154,14 @@ class DispatchCallApp:
 
     def _apply_permissions(self):
         is_admin = self.current_user_role == 'admin'
-        admin_state = "normal" if is_admin else "disabled"
-        self.delete_button.config(state=admin_state)
-        self.restore_button.config(state=admin_state)
+        if is_admin:
+            self.history_button.grid()
+        else:
+            self.history_button.grid_remove()
         
     def _setup_keyboard_shortcuts(self):
-        self.root.bind('<Control-s>', lambda event: self.modify_call())
+        self.root.bind('<Control-s>', lambda event: self.modify_call() if self.table.selection() else None)
         self.root.bind('<Control-n>', lambda event: self.clear_input_fields())
-        self.root.bind('<Delete>', lambda event: self.delete_call() if self.delete_button['state'] == 'normal' else None)
 
     def _set_dirty_flag(self, *args):
         if self.is_loading_data: return
@@ -199,38 +201,42 @@ class DispatchCallApp:
         fields_frame = ttk.LabelFrame(self.root, text="Dispatch Call Details")
         fields_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         uniform_width = 30
+        
         ttk.Label(fields_frame, text="Input Medium:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
         input_medium_cb = ttk.Combobox(fields_frame, textvariable=self.input_medium_var, state="readonly", values=list(self.source_options.keys()), width=uniform_width)
         input_medium_cb.grid(row=0, column=1, padx=5, pady=2, sticky="w")
         input_medium_cb.bind("<<ComboboxSelected>>", self.update_source_options)
+        
         ttk.Label(fields_frame, text="Source:").grid(row=0, column=2, padx=5, pady=2, sticky="w")
         self.source_cb = ttk.Combobox(fields_frame, textvariable=self.source_var, state="readonly", width=uniform_width)
         self.source_cb.grid(row=0, column=3, padx=5, pady=2, sticky="w")
         self.update_source_options()
+        
         ttk.Label(fields_frame, text="Caller ID:").grid(row=1, column=0, padx=5, pady=2, sticky="w")
         ttk.Entry(fields_frame, textvariable=self.caller_var, width=uniform_width+3).grid(row=1, column=1, padx=5, pady=2, sticky="w")
+        
         ttk.Label(fields_frame, text="Location:").grid(row=2, column=0, padx=5, pady=2, sticky="w")
         ttk.Entry(fields_frame, textvariable=self.location_var, width=uniform_width+3).grid(row=2, column=1, padx=5, pady=2, sticky="w")
         
-        formatted_codes = list(self.display_to_config_map.keys())
-        ttk.Label(fields_frame, text="Code:").grid(row=3, column=0, padx=5, pady=2, sticky="w")
-        code_cb = ttk.Combobox(fields_frame, textvariable=self.code_var, state="readonly", values=formatted_codes, width=uniform_width)
+        all_descriptions = list(self.desc_to_code_map.keys())
+        ttk.Label(fields_frame, text="Situation:").grid(row=3, column=0, padx=5, pady=2, sticky="w")
+        code_cb = ttk.Combobox(fields_frame, textvariable=self.code_var, state="readonly", values=all_descriptions, width=uniform_width)
         code_cb.grid(row=3, column=1, padx=5, pady=2, sticky="w")
         code_cb.bind("<<ComboboxSelected>>", self.update_code_description)
         
-        no_code_display = self.config_to_display_map.get("no_code", "No Code")
-        if no_code_display in formatted_codes:
-            self.code_var.set(no_code_display)
-        elif formatted_codes:
-            self.code_var.set(formatted_codes[0])
+        if "general situations" in [d.lower() for d in all_descriptions]:
+            default_val = next(d for d in all_descriptions if d.lower() == "general situations")
+            self.code_var.set(default_val)
+        elif all_descriptions:
+            self.code_var.set(all_descriptions[0])
 
-        ttk.Label(fields_frame, text="Code Desc:").grid(row=3, column=2, padx=5, pady=2, sticky="w")
-        ttk.Label(fields_frame, textvariable=self.code_description_var, wraplength=400, justify="left").grid(row=3, column=3, columnspan=2, padx=5, pady=2, sticky="w")
+        ttk.Label(fields_frame, text="Assigned Code:").grid(row=3, column=2, padx=5, pady=2, sticky="w")
+        ttk.Label(fields_frame, textvariable=self.code_description_var, font=("TkDefaultFont", 9, "bold")).grid(row=3, column=3, columnspan=2, padx=5, pady=2, sticky="w")
+        
         ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=2, sticky="nw")
         self.description_entry = scrolledtext.ScrolledText(fields_frame, height=5, width=60, borderwidth=0)
         self.description_entry.grid(row=4, column=1, columnspan=4, padx=5, pady=2, sticky="w")
         
-        # New "Answered" section
         ttk.Checkbutton(fields_frame, text="Answered", variable=self.answered_status_var, command=self.toggle_answered_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
         answered_frame = ttk.Frame(fields_frame)
         answered_frame.grid(row=5, column=1, columnspan=3, padx=5, pady=5, sticky="w")
@@ -238,7 +244,6 @@ class DispatchCallApp:
         self.answered_by_entry = ttk.Entry(answered_frame, textvariable=self.answered_by_var, state="disabled", width=uniform_width)
         self.answered_by_entry.pack(side="left")
 
-        # Original "Resolved" section
         ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolved_entry).grid(row=6, column=0, padx=5, pady=5, sticky="w")
         resolved_frame = ttk.Frame(fields_frame)
         resolved_frame.grid(row=6, column=1, columnspan=3, padx=5, pady=5, sticky="w")
@@ -247,6 +252,11 @@ class DispatchCallApp:
         self.resolved_by_entry.pack(side="left")
 
         self.update_code_description()
+
+    def update_code_description(self, event=None):
+        situation_desc = self.code_var.get()
+        assigned_code = self.desc_to_code_map.get(situation_desc, "N/A")
+        self.code_description_var.set(assigned_code)
 
     def update_source_options(self, event=None):
         medium = self.input_medium_var.get()
@@ -258,41 +268,23 @@ class DispatchCallApp:
         buttons_frame = ttk.Frame(self.root)
         buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
         
-        self.add_button = ttk.Button(buttons_frame, text="Add Call", command=self.add_call)
-        self.add_button.grid(row=0, column=0, padx=5, pady=5)
-        ToolTip(self.add_button, "Add a new call with the details above.")
+        style = ttk.Style()
+        style.configure("Bold.TButton", font=("TkDefaultFont", 10, "bold"))
         
-        self.save_button = ttk.Button(buttons_frame, text="Save Modification", command=self.modify_call)
-        self.save_button.grid(row=0, column=1, padx=5, pady=5)
-        ToolTip(self.save_button, "Save changes to the selected call (Ctrl+S).")
-        
-        self.delete_button = ttk.Button(buttons_frame, text="Delete Call", command=self.delete_call)
-        self.delete_button.grid(row=0, column=2, padx=5, pady=5)
-        ToolTip(self.delete_button, "Mark the selected call as deleted (Delete).\n(Admin only)")
+        self.primary_action_button = ttk.Button(buttons_frame, text="Add Call", command=self.add_call, style="Bold.TButton")
+        self.primary_action_button.grid(row=0, column=0, padx=5, pady=5)
+        ToolTip(self.primary_action_button, "Add a new call or save modifications to the selected call.")
         
         self.clear_button = ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields)
-        self.clear_button.grid(row=0, column=3, padx=5, pady=5)
+        self.clear_button.grid(row=0, column=1, padx=5, pady=5)
         ToolTip(self.clear_button, "Clear all input fields (Ctrl+N).")
         
-        self.red_flag_button = ttk.Button(buttons_frame, text="Red Flag", command=self.red_flag_call)
-        self.red_flag_button.grid(row=0, column=4, padx=5, pady=5)
-        ToolTip(self.red_flag_button, "Toggle a red flag on the selected call.")
-        
-        self.toggle_deleted_button = ttk.Button(buttons_frame, text="Show Deleted", command=self.toggle_deleted)
-        self.toggle_deleted_button.grid(row=0, column=5, padx=5, pady=5)
-        ToolTip(self.toggle_deleted_button, "Toggle visibility of deleted calls.")
-        
-        self.restore_button = ttk.Button(buttons_frame, text="Restore Call", command=self.restore_call)
-        self.restore_button.grid(row=0, column=6, padx=5, pady=5)
-        ToolTip(self.restore_button, "Restore a call that was marked as deleted.\n(Admin only)")
-        
         self.history_button = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
-        self.history_button.grid(row=0, column=7, padx=5, pady=5)
+        self.history_button.grid(row=0, column=2, padx=5, pady=5)
         ToolTip(self.history_button, "View the audit history for the selected call.")
 
         self.action_buttons = [
-            self.add_button, self.save_button, self.delete_button, self.clear_button, 
-            self.red_flag_button, self.toggle_deleted_button, self.restore_button, self.history_button
+            self.primary_action_button, self.clear_button, self.history_button
         ]
 
     def _on_manual_scroll(self, event=None):
@@ -305,7 +297,7 @@ class DispatchCallApp:
             "ResolutionStatus": ("Resolved?", 70), "ResolutionTimestamp": ("Resolved At", 120), "ResolvedBy": ("Resolved By", 100),
             "InputMedium": ("Medium", 100), "Source": ("Source", 100), "Caller": ("Caller", 100),
             "Location": ("Location", 120), "Code": ("Code", 150), "Description": ("Description", 300),
-            "CreatedBy": ("Created By", 100), "ModifiedBy": ("Modified By", 100), "ReportNumber": ("Report #", 100)
+            "ModifiedBy": ("Modified By", 100), "CreatedBy": ("Created By", 100)
         }
         
         table_frame = ttk.Frame(self.root)
@@ -321,10 +313,10 @@ class DispatchCallApp:
         self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=self.scrollbar.set)
         
-        self.table.tag_configure("answered", background="#FFFFE0")  # Light yellow for answered
-        self.table.tag_configure("resolved", background="#d0f0c0")  # Green for resolved
-        self.table.tag_configure("redflag", background="#f08080")
-        self.table.tag_configure("deleted", foreground="#a9a9a9")
+        self.table.tag_configure("hascode", background="#ffffff")
+        self.table.tag_configure("nocode", background="#d3d3d3")
+        self.table.tag_configure("answered", background="#FFFFE0")
+        self.table.tag_configure("resolved", background="#d0f0c0")
         
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
         
@@ -357,12 +349,6 @@ class DispatchCallApp:
         self.root.grid_rowconfigure(2, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-    def update_code_description(self, event=None):
-        display_key = self.code_var.get()
-        config_key = self.display_to_config_map.get(display_key)
-        description = self.code_descriptions.get(config_key, "Unknown Code").split('|', 1)[-1].strip()
-        self.code_description_var.set(description)
-
     def toggle_answered_entry(self):
         state = "normal" if self.answered_status_var.get() else "disabled"
         self.answered_by_entry.configure(state=state)
@@ -384,8 +370,6 @@ class DispatchCallApp:
         else:
             self.status_var.set("Ready")
             self._apply_permissions()
-            if self.table.selection():
-                self.add_button.config(state="disabled")
 
     def _validate_fields(self):
         if not self.caller_var.get().strip():
@@ -420,11 +404,11 @@ class DispatchCallApp:
 
     def add_call(self):
         if not self._validate_fields(): return
-        raw_code = self.display_to_config_map.get(self.code_var.get(), "")
+        actual_code = self.desc_to_code_map.get(self.code_var.get(), "")
         call_data = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
-            "Code": raw_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
+            "Code": actual_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
             "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
             "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
         }
@@ -445,11 +429,11 @@ class DispatchCallApp:
             return
         if not self._validate_fields(): return
         report_id = self.table.item(self.table.selection()[0])["values"][0]
-        raw_code = self.display_to_config_map.get(self.code_var.get(), "")
+        actual_code = self.desc_to_code_map.get(self.code_var.get(), "")
         updated_call = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
-            "Code": raw_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
+            "Code": actual_code, "Description": self.description_entry.get("1.0", tk.END).strip(),
             "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
             "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
         }
@@ -466,37 +450,14 @@ class DispatchCallApp:
             self.logger.error(f"Failed to modify call: {result_or_error}")
             messagebox.showerror("Database Error", f"Failed to modify call: {result_or_error}")
 
-    def _perform_call_action(self, action_func, confirm_msg, success_log):
-        if not self.table.selection():
-            messagebox.showwarning("Selection Error", "No call selected.")
-            return
-        report_id = self.table.item(self.table.selection()[0])["values"][0]
-        if confirm_msg and not messagebox.askyesno("Confirm Action", confirm_msg.format(report_id)):
-            return
-        self._run_in_thread(action_func, lambda s, r: self._on_generic_action_complete(s, r, success_log.format(report_id)), report_id, self.current_user)
-
-    def _on_generic_action_complete(self, success, result_or_error, log_message):
-        if success:
-            self.logger.info(log_message)
-            self.is_dirty = False
-            self.clear_input_fields()
-            self.update_table()
-        else:
-            self.logger.error(f"Action failed: {result_or_error}")
-            messagebox.showerror("Error", f"Action failed: {result_or_error}")
-
-    def delete_call(self): self._perform_call_action(self.manager.delete_call, "Are you sure you want to delete call {0}?", "Call marked as deleted: {0}")
-    def restore_call(self): self._perform_call_action(self.manager.restore_call, "Are you sure you want to restore call {0}?", "Call restored: {0}")
-    def red_flag_call(self): self._perform_call_action(self.manager.red_flag_call, None, "Red-flag status toggled for call: {0}")
-
     def load_selected_call(self, event):
         if self.is_dirty:
             if not messagebox.askyesno("Unsaved Changes", "You have unsaved changes that will be lost. Discard them?"):
                 return "break"
         if not self.table.selection(): return
         
-        self.add_button.config(state="disabled")
-
+        self.primary_action_button.config(text="Save Modification", command=self.modify_call)
+        
         item = self.table.item(self.table.selection()[0])
         call = dict(zip(self.columns.keys(), item['values']))
         self.is_loading_data = True
@@ -507,21 +468,23 @@ class DispatchCallApp:
             self.caller_var.set(call.get("Caller", ""))
             self.location_var.set(call.get("Location", ""))
             
-            db_code = self.display_to_config_map.get(call.get("Code", ""), call.get("Code", ""))
-            display_code = self.config_to_display_map.get(db_code, db_code)
-            self.code_var.set(display_code)
+            db_code = call.get("Code", "")
+            situation_desc = next((k for k, v in self.desc_to_code_map.items() if v == db_code), None)
+            
+            if not situation_desc:
+                situation_desc = next((d for d in self.desc_to_code_map.keys() if d.lower() == "general situations"), list(self.desc_to_code_map.keys())[0])
 
+            self.code_var.set(situation_desc)
             self.update_code_description()
+            
             self.description_entry.delete("1.0", tk.END)
             self.description_entry.insert(tk.END, call.get("Description", ""))
 
-            # New answered fields
             is_answered = str(call.get("AnsweredStatus", "False")).lower() in ('true', '1')
             self.answered_status_var.set(is_answered)
             self.toggle_answered_entry()
             self.answered_by_var.set(call.get("AnsweredBy", ""))
 
-            # Original resolved fields
             is_resolved = str(call.get("ResolutionStatus", "False")).lower() in ('true', '1')
             self.resolution_status_var.set(is_resolved)
             self.toggle_resolved_entry()
@@ -531,17 +494,14 @@ class DispatchCallApp:
             self.is_loading_data = False
         self.is_dirty = False
 
-    def toggle_deleted(self):
-        self.show_deleted = not self.show_deleted
-        self.status_var.set("Showing all calls (including deleted)" if self.show_deleted else "Showing only active calls")
-        self.update_table()
-
     def clear_input_fields(self):
         if self.is_dirty and not messagebox.askyesno("Unsaved Changes", "Discard unsaved changes?"):
             return
         self.is_loading_data = True
         try:
-            self.table.selection_remove(self.table.selection())
+            if self.table.selection():
+                self.table.selection_remove(self.table.selection())
+            
             self.caller_var.set("")
             self.location_var.set("")
             self.description_entry.delete("1.0", tk.END)
@@ -554,15 +514,31 @@ class DispatchCallApp:
             self.resolved_by_var.set("")
             self.toggle_resolved_entry()
 
-            no_code_display = self.config_to_display_map.get("no_code", "")
-            if no_code_display: self.code_var.set(no_code_display)
+            all_descriptions = list(self.desc_to_code_map.keys())
+            if "general situations" in [d.lower() for d in all_descriptions]:
+                default_val = next(d for d in all_descriptions if d.lower() == "general situations")
+                self.code_var.set(default_val)
+            elif all_descriptions:
+                self.code_var.set(all_descriptions[0])
 
             self.update_code_description()
             
-            self.add_button.config(state="normal")
+            self.primary_action_button.config(text="Add Call", command=self.add_call)
         finally:
             self.is_loading_data = False
         self.is_dirty = False
+
+    def _on_click_outside(self, event):
+        try:
+            w_class = event.widget.winfo_class()
+            safe_classes = (
+                'Entry', 'TEntry', 'TCombobox', 'TComboboxListbox', 'Text', 'Treeview', 
+                'Button', 'TButton', 'Scrollbar', 'TScrollbar', 'Menu', 'Toplevel', 'TCheckbutton'
+            )
+            if w_class not in safe_classes:
+                self.clear_input_fields()
+        except AttributeError:
+            pass
 
     def export_report(self):
         filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
@@ -634,24 +610,25 @@ class DispatchCallApp:
         item_map = {}
         filter_text = self.search_var.get().lower().strip()
         
-        # Define the order of keys for display
         display_keys = list(self.columns.keys())
 
         for call_row in all_calls:
             call = dict(call_row)
-            if not self.show_deleted and call.get('Deleted'): continue
+            if call.get('Deleted'): continue
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
             tags = []
             
-            # Apply tags based on priority
             if call.get('ResolutionStatus'):
                 tags.append("resolved")
             elif call.get('AnsweredStatus'):
                 tags.append("answered")
-            
-            if call.get('RedFlag'): tags.append("redflag")
-            if call.get('Deleted'): tags.append("deleted")
+            else:
+                db_code = call.get('Code', "")
+                if not db_code or db_code.lower() == "no_code":
+                    tags.append("nocode")
+                else:
+                    tags.append("hascode")
             
             values = []
             for key in display_keys:
@@ -660,8 +637,7 @@ class DispatchCallApp:
                 elif key == "ResolutionStatus":
                     values.append("True" if call.get(key) else "False")
                 elif key == "Code":
-                    db_code = call.get(key, "")
-                    values.append(self.config_to_display_map.get(db_code, db_code))
+                    values.append(call.get(key, ""))
                 else:
                     values.append(call.get(key, ""))
             
@@ -685,7 +661,7 @@ class DispatchCallApp:
                 last_item = self.table.get_children()[-1]
                 self.table.see(last_item)
         
-        else: # 'preserve' behavior
+        else:
             if pre_selection_id and pre_selection_id in item_map:
                 self.table.selection_set(item_map[pre_selection_id])
             

@@ -505,3 +505,54 @@ TypeError: RawConfigParser.items() got an unexpected keyword argument 'fallback'
 2025-08-14 21:26:18,518 - DispatchApp - INFO - Application starting up.
 2025-08-14 21:26:20,556 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
 2025-08-14 21:27:27,551 - DispatchApp - INFO - Application closing.
+2026-02-08 10:43:15,053 - DispatchApp - INFO - Application starting up.
+2026-02-08 10:44:10,431 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-02-08 10:59:10,506 - DispatchApp - INFO - Backup created: backup_20260208_105910.db
+2026-02-08 11:14:10,529 - DispatchApp - INFO - Backup created: backup_20260208_111410.db
+2026-02-08 11:17:23,704 - DispatchApp - INFO - Application closing.
+2026-04-04 12:07:04,534 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:07:10,776 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:07:50,096 - DispatchApp - WARNING - Login cancelled by user. Shutting down.
+2026-04-04 12:11:46,027 - DispatchApp - INFO - Call added: DC26-0004
+2026-04-04 12:11:59,380 - DispatchApp - INFO - Call modified: DC26-0004
+2026-04-04 12:14:12,349 - DispatchApp - INFO - Call modified: DC25-0001
+2026-04-04 12:14:30,328 - DispatchApp - INFO - Call modified: DC25-0001
+2026-04-04 12:16:59,706 - DispatchApp - INFO - Call added: DC26-0005
+2026-04-04 12:18:00,634 - DispatchApp - INFO - Red-flag status toggled for call: DC26-0004
+2026-04-04 12:18:50,857 - DispatchApp - INFO - Call modified: DC25-0001
+2026-04-04 12:22:10,836 - DispatchApp - INFO - Backup created: backup_20260404_122210.db
+2026-04-04 12:37:10,894 - DispatchApp - INFO - Backup created: backup_20260404_123710.db
+2026-04-04 12:39:39,312 - DispatchApp - INFO - Application closing.
+2026-04-04 12:39:42,355 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:39:48,182 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:43:54,620 - DispatchApp - INFO - User changed from 'd2 ant' to: d6 jr
+2026-04-04 12:49:48,833 - DispatchApp - INFO - Application closing.
+2026-04-04 12:49:51,425 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:49:51,473 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in'
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 53, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 65, in __init__
+    if not self.ensure_user_logged_in():
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in'
+2026-04-04 12:49:56,243 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:49:56,285 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in'
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 53, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 65, in __init__
+    if not self.ensure_user_logged_in():
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in'
+2026-04-04 12:51:39,943 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:51:42,155 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:53:02,730 - DispatchApp - INFO - Application closing.
+2026-04-04 12:53:06,862 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:53:08,801 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:54:37,139 - DispatchApp - INFO - Application closing.
+2026-04-04 12:54:39,810 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:54:41,708 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:55:39,529 - DispatchApp - INFO - Application closing.
+2026-04-04 12:55:42,860 - DispatchApp - INFO - Application starting up.
+2026-04-04 12:55:44,734 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
