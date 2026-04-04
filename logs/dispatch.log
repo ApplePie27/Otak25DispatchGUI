@@ -556,3 +556,4 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-04-04 12:55:39,529 - DispatchApp - INFO - Application closing.
 2026-04-04 12:55:42,860 - DispatchApp - INFO - Application starting up.
 2026-04-04 12:55:44,734 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 12:58:30,868 - DispatchApp - INFO - Application closing.
