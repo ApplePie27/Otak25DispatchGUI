@@ -557,3 +557,27 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-04-04 12:55:42,860 - DispatchApp - INFO - Application starting up.
 2026-04-04 12:55:44,734 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
 2026-04-04 12:58:30,868 - DispatchApp - INFO - Application closing.
+2026-04-04 14:36:09,308 - DispatchApp - INFO - Application starting up.
+2026-04-04 14:36:11,542 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-04-04 14:36:16,134 - DispatchApp - INFO - Application closing.
+2026-04-04 14:36:18,719 - DispatchApp - INFO - Application starting up.
+2026-04-04 14:36:22,919 - DispatchApp - INFO - User 'd6 jr' logged in as 'user'. Building UI.
+2026-04-04 14:51:22,999 - DispatchApp - INFO - Backup created: backup_20260404_145122.db
+2026-04-04 15:06:23,022 - DispatchApp - INFO - Backup created: backup_20260404_150623.db
+2026-04-04 15:21:23,047 - DispatchApp - INFO - Backup created: backup_20260404_152123.db
+2026-04-04 15:36:23,079 - DispatchApp - INFO - Backup created: backup_20260404_153623.db
+2026-04-04 15:51:23,110 - DispatchApp - INFO - Backup created: backup_20260404_155123.db
+2026-04-04 16:06:23,130 - DispatchApp - INFO - Backup created: backup_20260404_160623.db
+2026-04-04 16:21:23,154 - DispatchApp - INFO - Backup created: backup_20260404_162123.db
+2026-04-04 16:36:23,167 - DispatchApp - INFO - Backup created: backup_20260404_163623.db
+2026-04-04 16:37:02,853 - DispatchApp - INFO - Application closing.
+2026-05-10 18:38:59,613 - DispatchApp - INFO - Application starting up.
+2026-05-10 18:39:27,913 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-10 18:41:24,567 - DispatchApp - INFO - Call added: DC26-0006
+2026-05-10 18:41:42,316 - DispatchApp - INFO - Call added: DC26-0007
+2026-05-10 18:41:52,647 - DispatchApp - INFO - Call added: DC26-0008
+2026-05-10 18:42:34,975 - DispatchApp - INFO - Call added: DC26-0009
+2026-05-10 18:43:00,250 - DispatchApp - INFO - Application closing.
+2026-05-10 18:47:40,319 - DispatchApp - INFO - Application starting up.
+2026-05-10 18:47:44,873 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-10 18:57:47,095 - DispatchApp - INFO - Application closing.
