@@ -11,7 +11,7 @@ from datetime import datetime
 # CONFIGURATION
 # ==========================================
 DB_PATH = "dispatch.db"
-DISCORD_TOKEN = "MTUxMDczMjQ4NTQzMTEzNjMwNg.G9WCLY.tKprdSYxsGPEBehb8JTX-ALk74JXX593FGlLOM"      # Replace with your Bot Token
+DISCORD_TOKEN = "token"      # Replace with your Bot Token
 PORT = 8080                                        # Communication port between GUI and Bot
 
 # Map your GUI 'Source' selections directly to distinct Discord Channel IDs
