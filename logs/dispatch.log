@@ -581,3 +581,33 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-05-10 18:47:40,319 - DispatchApp - INFO - Application starting up.
 2026-05-10 18:47:44,873 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
 2026-05-10 18:57:47,095 - DispatchApp - INFO - Application closing.
+2026-05-31 15:19:13,710 - DispatchApp - INFO - Application starting up.
+2026-05-31 15:19:20,680 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-31 15:27:07,808 - DispatchApp - INFO - Application closing.
+2026-05-31 15:28:03,955 - DispatchApp - INFO - Application starting up.
+2026-05-31 15:28:06,456 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-31 15:43:06,497 - DispatchApp - INFO - Backup created: backup_20260531_154306.db
+2026-05-31 15:54:54,586 - DispatchApp - INFO - Call added: DC26-0010
+2026-05-31 15:55:18,305 - DispatchApp - INFO - Call modified.
+2026-05-31 15:55:30,978 - DispatchApp - INFO - Call modified.
+2026-05-31 15:58:06,517 - DispatchApp - INFO - Backup created: backup_20260531_155806.db
+2026-05-31 16:03:05,643 - DispatchApp - INFO - Application closing.
+2026-05-31 16:17:36,849 - DispatchApp - INFO - Application starting up.
+2026-05-31 16:17:38,999 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-31 16:17:53,847 - DispatchApp - INFO - Call added: DC26-0011
+2026-05-31 16:23:12,416 - DispatchApp - INFO - Call added: DC26-0012
+2026-05-31 16:23:15,443 - DispatchApp - WARNING - Background Discord signaling failed: <urlopen error timed out>
+2026-05-31 16:23:26,808 - DispatchApp - INFO - Application closing.
+2026-05-31 16:24:27,942 - DispatchApp - INFO - Application starting up.
+2026-05-31 16:24:30,012 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-31 16:24:34,536 - DispatchApp - INFO - Call added: DC26-0013
+2026-05-31 16:26:51,698 - DispatchApp - INFO - Call added: DC26-0014
+2026-05-31 16:35:58,148 - DispatchApp - INFO - Application starting up.
+2026-05-31 16:36:01,156 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-05-31 16:36:18,966 - DispatchApp - INFO - Call added: DC26-0015
+2026-05-31 16:37:05,368 - DispatchApp - INFO - Call added: DC26-0016
+2026-05-31 16:38:32,936 - DispatchApp - INFO - Call added: DC26-0017
+2026-05-31 16:41:25,790 - DispatchApp - INFO - Call added: DC26-0018
+2026-05-31 16:50:10,657 - DispatchApp - INFO - Call added: DC26-0019
+2026-05-31 16:50:21,956 - DispatchApp - INFO - Call modified.
+2026-05-31 16:51:01,208 - DispatchApp - INFO - Backup created: backup_20260531_165101.db

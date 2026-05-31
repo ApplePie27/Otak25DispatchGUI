@@ -7,7 +7,9 @@ import sys
 import logging
 import configparser
 import csv
-import threading
+import json
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 class ToolTip:
     def __init__(self, widget, text):
@@ -54,6 +56,11 @@ class DispatchCallApp:
         self.root = root
         self.logger = logger
         self.manager = data_manager
+        
+        # Single-worker thread executor prevents concurrent database locks 
+        # and safely executes asynchronous background calls.
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        
         self.root.title("Dispatch Call Management System")
         self.root.resizable(True, True)
         self.config = configparser.ConfigParser()
@@ -62,9 +69,11 @@ class DispatchCallApp:
         self.current_user_role = None
         self.is_dirty = False
         self.is_loading_data = False
+        
         if not self.ensure_user_logged_in():
             self.root.destroy()
             return
+            
         self._build_main_ui()
         self.root.deiconify()
         
@@ -84,11 +93,13 @@ class DispatchCallApp:
         self.resolved_by_var = tk.StringVar()
 
         self.code_description_var = tk.StringVar()
+        
         self.create_status_bar()
         self.create_log_area()
         self.setup_logging_handler()
         self.status_var.set(f"User: {self.current_user} ({self.current_user_role})")
         self.logger.info(f"User '{self.current_user}' logged in as '{self.current_user_role}'. Building UI.")
+        
         self.create_table()
         self.create_menu_bar()
         self.create_input_fields()
@@ -98,21 +109,20 @@ class DispatchCallApp:
         self._apply_permissions()
         self._setup_keyboard_shortcuts()
         self._setup_dirty_tracking()
+        
         self.update_table()
         self.start_backup_timer()
         self.start_auto_refresh()
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.bind("<Button-1>", self._on_click_outside)
 
     def load_config(self):
         self.config.read('config.ini')
         self.auto_refresh_interval_ms = self.config.getint('APPLICATION', 'auto_refresh_seconds', fallback=30) * 1000
-        
         self.auto_scroll_var = tk.BooleanVar(
             value=self.config.getboolean('APPLICATION', 'auto_scroll_to_latest', fallback=True)
         )
-
         self.max_backups = self.config.getint('BACKUP', 'max_backups', fallback=10)
         
         self.desc_to_code_map = {}
@@ -174,7 +184,6 @@ class DispatchCallApp:
         self.answered_status_var.trace_add("write", self._set_dirty_flag)
         self.resolved_by_var.trace_add("write", self._set_dirty_flag)
         self.resolution_status_var.trace_add("write", self._set_dirty_flag)
-        self.resolved_by_var.trace_add("write", self._set_dirty_flag)
         self.description_entry.bind("<KeyRelease>", self._set_dirty_flag)
         self.caller_var.trace_add("write", lambda *args: self.caller_var.set(self.caller_var.get().upper()))
 
@@ -271,17 +280,18 @@ class DispatchCallApp:
         style = ttk.Style()
         style.configure("Bold.TButton", font=("TkDefaultFont", 10, "bold"))
         
-        self.primary_action_button = ttk.Button(buttons_frame, text="Add Call", command=self.add_call, style="Bold.TButton")
+        # Primary action button configured in Bold and ALL CAPS
+        self.primary_action_button = ttk.Button(buttons_frame, text="ADD CALL", command=self.add_call, style="Bold.TButton")
         self.primary_action_button.grid(row=0, column=0, padx=5, pady=5)
-        ToolTip(self.primary_action_button, "Add a new call or save modifications to the selected call.")
+        ToolTip(self.primary_action_button, "Submit transaction data.")
         
         self.clear_button = ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields)
         self.clear_button.grid(row=0, column=1, padx=5, pady=5)
-        ToolTip(self.clear_button, "Clear all input fields (Ctrl+N).")
+        ToolTip(self.clear_button, "Reset all input fields (Ctrl+N).")
         
         self.history_button = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
         self.history_button.grid(row=0, column=2, padx=5, pady=5)
-        ToolTip(self.history_button, "View the audit history for the selected call.")
+        ToolTip(self.history_button, "Display historical change audits.")
 
         self.action_buttons = [
             self.primary_action_button, self.clear_button, self.history_button
@@ -313,13 +323,14 @@ class DispatchCallApp:
         self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=self.scrollbar.set)
         
+        # Color assignments: 
+        # Gray background (No_Code) vs White background (Incident Code Active)
         self.table.tag_configure("hascode", background="#ffffff")
         self.table.tag_configure("nocode", background="#d3d3d3")
         self.table.tag_configure("answered", background="#FFFFE0")
         self.table.tag_configure("resolved", background="#d0f0c0")
         
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
-        
         self.table.bind("<MouseWheel>", self._on_manual_scroll)
         self.scrollbar.bind("<ButtonPress-1>", self._on_manual_scroll)
         self.scrollbar.bind("<B1-Motion>", self._on_manual_scroll)
@@ -343,7 +354,6 @@ class DispatchCallApp:
         
         scroll_check = ttk.Checkbutton(search_frame, text="Auto-Scroll to Latest", variable=self.auto_scroll_var)
         scroll_check.grid(row=0, column=2, padx=(20, 5), sticky="w")
-        ToolTip(scroll_check, "If checked, the table will automatically scroll to the latest entry during a refresh.")
 
     def configure_grid_weights(self):
         self.root.grid_rowconfigure(2, weight=1)
@@ -360,7 +370,6 @@ class DispatchCallApp:
         if state == "disabled": self.resolved_by_var.set("")
 
     def _set_ui_busy(self, is_busy):
-        """Disables or enables action buttons and updates the status bar."""
         state = "disabled" if is_busy else "normal"
         for button in self.action_buttons:
             button.config(state=state)
@@ -394,13 +403,37 @@ class DispatchCallApp:
         def worker():
             try:
                 result = target(*args)
-                if self.root.winfo_exists(): self.root.after(0, callback, True, result)
+                if self.root.winfo_exists(): 
+                    self.root.after(0, callback, True, result)
             except Exception as e:
-                if self.root.winfo_exists(): self.root.after(0, callback, False, e)
+                if self.root.winfo_exists(): 
+                    self.root.after(0, callback, False, str(e))
             finally:
                 if self.root.winfo_exists():
                     self.root.after(0, self._set_ui_busy, False)
-        threading.Thread(target=worker, daemon=True).start()
+        
+        self.executor.submit(worker)
+
+    def _signal_discord_bot(self, report_id, location, code, description, source):
+        """Asynchronously dispatches background signaling message containing source context."""
+        payload = {
+            "report_id": report_id,
+            "location": location,
+            "code": code,
+            "description": description,
+            "source": source
+        }
+        try:
+            req = urllib.request.Request(
+                "http://localhost:8080/dispatch",
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            # Web server timeout protects UI threads from hanging
+            with urllib.request.urlopen(req, timeout=1.5) as response:
+                pass
+        except Exception as e:
+            self.logger.warning(f"Background Discord signaling failed: {e}")
 
     def add_call(self):
         if not self._validate_fields(): return
@@ -418,6 +451,19 @@ class DispatchCallApp:
         if success:
             self.logger.info(f"Call added: {new_report_id}")
             self.is_dirty = False
+            
+            # Check if the medium is Social Media. If so, do NOT notify the Discord bot
+            medium = self.input_medium_var.get().strip()
+            if medium != "Social Media":
+                self.executor.submit(
+                    self._signal_discord_bot,
+                    report_id=new_report_id,
+                    location=self.location_var.get().strip(),
+                    code=self.code_description_var.get(),
+                    description=self.description_entry.get("1.0", tk.END).strip(),
+                    source=self.source_var.get().strip() # Capture selected source department
+                )
+            
             self.update_table(update_behavior='focus', target_id=new_report_id, was_added=True)
         else:
             self.logger.error(f"Failed to add call: {new_report_id}")
@@ -441,9 +487,7 @@ class DispatchCallApp:
 
     def _on_modify_call_complete(self, success, result_or_error):
         if success:
-            if self.table.selection():
-                report_id = self.table.item(self.table.selection()[0])["values"][0]
-                self.logger.info(f"Call modified: {report_id}")
+            self.logger.info("Call modified.")
             self.is_dirty = False
             self.update_table(clear_fields=True)
         else:
@@ -456,7 +500,8 @@ class DispatchCallApp:
                 return "break"
         if not self.table.selection(): return
         
-        self.primary_action_button.config(text="Save Modification", command=self.modify_call)
+        # Action button updates to SAVE MODIFICATION (Bold & All Caps)
+        self.primary_action_button.config(text="SAVE MODIFICATION", command=self.modify_call, style="Bold.TButton")
         
         item = self.table.item(self.table.selection()[0])
         call = dict(zip(self.columns.keys(), item['values']))
@@ -523,19 +568,18 @@ class DispatchCallApp:
 
             self.update_code_description()
             
-            self.primary_action_button.config(text="Add Call", command=self.add_call)
+            # Reset button label state to ADD CALL (Bold & All Caps)
+            self.primary_action_button.config(text="ADD CALL", command=self.add_call, style="Bold.TButton")
         finally:
             self.is_loading_data = False
         self.is_dirty = False
 
     def _on_click_outside(self, event):
+        """Deselects rows and clears fields when clicking structural panels."""
         try:
             w_class = event.widget.winfo_class()
-            safe_classes = (
-                'Entry', 'TEntry', 'TCombobox', 'TComboboxListbox', 'Text', 'Treeview', 
-                'Button', 'TButton', 'Scrollbar', 'TScrollbar', 'Menu', 'Toplevel', 'TCheckbutton'
-            )
-            if w_class not in safe_classes:
+            clickable_panel_classes = ('Frame', 'Label', 'Tk', 'TFrame', 'TLabel', 'LabelFrame', 'TLabelFrame')
+            if w_class in clickable_panel_classes:
                 self.clear_input_fields()
         except AttributeError:
             pass
@@ -609,7 +653,6 @@ class DispatchCallApp:
 
         item_map = {}
         filter_text = self.search_var.get().lower().strip()
-        
         display_keys = list(self.columns.keys())
 
         for call_row in all_calls:
@@ -619,12 +662,14 @@ class DispatchCallApp:
             
             tags = []
             
+            # Styling precedence: Resolved > Answered > Incident Code Present (hascode vs nocode)
             if call.get('ResolutionStatus'):
                 tags.append("resolved")
             elif call.get('AnsweredStatus'):
                 tags.append("answered")
             else:
                 db_code = call.get('Code', "")
+                # If there's no code (empty or "no_code"), apply grey "nocode" row color styling
                 if not db_code or db_code.lower() == "no_code":
                     tags.append("nocode")
                 else:
@@ -632,12 +677,8 @@ class DispatchCallApp:
             
             values = []
             for key in display_keys:
-                if key == "AnsweredStatus":
+                if key in ("AnsweredStatus", "ResolutionStatus"):
                     values.append("True" if call.get(key) else "False")
-                elif key == "ResolutionStatus":
-                    values.append("True" if call.get(key) else "False")
-                elif key == "Code":
-                    values.append(call.get(key, ""))
                 else:
                     values.append(call.get(key, ""))
             
@@ -673,9 +714,11 @@ class DispatchCallApp:
         
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
 
-    def on_search(self, event=None): self.update_table(update_behavior='preserve')
+    def on_search(self, event=None): 
+        self.update_table(update_behavior='preserve')
     
-    def start_backup_timer(self): self.root.after(900 * 1000, self.create_backup)
+    def start_backup_timer(self): 
+        self.root.after(900 * 1000, self.create_backup)
 
     def create_backup(self):
         self._run_in_thread(self.manager.create_backup, self._on_backup_complete, "backups", self.max_backups)
@@ -692,9 +735,8 @@ class DispatchCallApp:
 
     def _auto_refresh_task(self):
         if self.is_dirty:
-            self.logger.debug("Auto-refresh skipped due to unsaved changes in the form.")
+            self.logger.debug("Auto-refresh skipped due to unsaved changes.")
         else:
-            self.logger.debug("Performing automatic table refresh.")
             if self.auto_scroll_var.get():
                 self.update_table(update_behavior='scroll_to_end')
             else:
@@ -733,5 +775,6 @@ class DispatchCallApp:
             self.root.after_cancel(self._auto_refresh_job)
             
         self.logger.info("Application closing.")
+        self.executor.shutdown(wait=False)
         self.manager.close()
         self.root.destroy()

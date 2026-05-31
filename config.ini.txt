@@ -1,0 +1,46 @@
+[DATABASE]
+filename = dispatch.db
+
+[APPLICATION]
+auto_refresh_seconds = 10
+
+[BACKUP]
+max_backups = 10
+
+[USERS]
+# Define users and their roles (admin or user)
+# format: username = role
+D1 Ken = admin
+D2 Ant = admin
+D3 Ren = admin
+D4 Alex = admin
+D5 Eva = admin
+D6 JR = user
+D7 Clov = user
+D8 Tama = user
+D9 Manas = user
+D10 Yen = user
+D11 Evan = user
+D12 Raya = user
+D13 Max = user
+
+[SOURCES]
+# Defines the source options available for each input medium.
+# Format is: medium = source1, source2, source3
+Radio = Safety, General, First Aid
+Social Media = Discord, Phone Call, SMS
+
+[CODES]
+# Format: Description = Code | Full Explanation
+General situations = No_Code | General situations and non-specific reports.
+Supervisor backup = Green | Requesting supervisor or additional unit backup.
+Hazardous material = Orange | Chemical spills or hazardous materials present.
+Suspected fire = Red | Smoke, flames, or suspected fire report.
+Life threatening medical emergency = Blue | Critical medical emergency requiring immediate life support.
+Minor medical issue = Yellow | Non-life-threatening medical assistance needed.
+Mental health crisis = Yellow M | Individual experiencing a mental health related emergency.
+Harassment = Purple | Reports of harassment or stalking.
+Active assailant = Silver | Active shooter or violent assailant on scene.
+Lost child = Adam | Missing or lost child report.
+Suspicious package/call threat = Black | Bomb threats or suspicious items discovered.
+Immediate personal danger = Signal_13 | MAYDAY | Officer or individual in immediate danger.
