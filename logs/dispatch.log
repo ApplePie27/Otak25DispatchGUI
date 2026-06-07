@@ -611,3 +611,14 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-05-31 16:50:10,657 - DispatchApp - INFO - Call added: DC26-0019
 2026-05-31 16:50:21,956 - DispatchApp - INFO - Call modified.
 2026-05-31 16:51:01,208 - DispatchApp - INFO - Backup created: backup_20260531_165101.db
+2026-05-31 17:06:01,227 - DispatchApp - INFO - Backup created: backup_20260531_170601.db
+2026-05-31 17:21:01,252 - DispatchApp - INFO - Backup created: backup_20260531_172101.db
+2026-05-31 17:36:01,272 - DispatchApp - INFO - Backup created: backup_20260531_173601.db
+2026-05-31 17:51:01,291 - DispatchApp - INFO - Backup created: backup_20260531_175101.db
+2026-05-31 18:06:01,304 - DispatchApp - INFO - Backup created: backup_20260531_180601.db
+2026-05-31 18:21:01,328 - DispatchApp - INFO - Backup created: backup_20260531_182101.db
+2026-05-31 18:36:01,348 - DispatchApp - INFO - Backup created: backup_20260531_183601.db
+2026-05-31 18:51:01,364 - DispatchApp - INFO - Backup created: backup_20260531_185101.db
+2026-05-31 19:06:01,379 - DispatchApp - INFO - Backup created: backup_20260531_190601.db
+2026-05-31 19:21:01,405 - DispatchApp - INFO - Backup created: backup_20260531_192101.db
+2026-05-31 19:27:36,355 - DispatchApp - INFO - Application closing.
