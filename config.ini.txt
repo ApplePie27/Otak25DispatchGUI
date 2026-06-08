@@ -1,15 +1,20 @@
 [DATABASE]
 filename = dispatch.db
 
+[DISCORD]
+bot_token = 
+safety_channel = 1510743241690058916
+general_channel = 1510731653251596532
+first_aid_channel = 1510743272291696721
+
 [APPLICATION]
 auto_refresh_seconds = 10
+auto_scroll_to_latest = True
 
 [BACKUP]
 max_backups = 10
 
 [USERS]
-# Define users and their roles (admin or user)
-# format: username = role
 D1 Ken = admin
 D2 Ant = admin
 D3 Ren = admin
@@ -25,13 +30,10 @@ D12 Raya = user
 D13 Max = user
 
 [SOURCES]
-# Defines the source options available for each input medium.
-# Format is: medium = source1, source2, source3
 Radio = Safety, General, First Aid
 Social Media = Discord, Phone Call, SMS
 
 [CODES]
-# Format: Description = Code | Full Explanation
 General situations = No_Code | General situations and non-specific reports.
 Supervisor backup = Green | Requesting supervisor or additional unit backup.
 Hazardous material = Orange | Chemical spills or hazardous materials present.

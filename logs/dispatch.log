@@ -631,3 +631,11 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-06-07 17:45:25,836 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
 2026-06-07 17:51:12,947 - DispatchApp - INFO - Application starting up.
 2026-06-07 17:51:14,952 - DispatchApp - INFO - User 'd2 ant' logged in as 'admin'. Building UI.
+2026-06-07 19:32:25,798 - DispatchApp - INFO - Application starting up.
+2026-06-07 19:33:09,424 - DispatchApp - INFO - Call added: DC26-0025
+2026-06-07 19:37:31,291 - DispatchApp - INFO - Application starting up.
+2026-06-07 19:42:06,360 - DispatchApp - INFO - Application starting up.
+2026-06-07 19:56:14,179 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:00:37,501 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:06:45,191 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:20:16,799 - DispatchApp - INFO - Application starting up.

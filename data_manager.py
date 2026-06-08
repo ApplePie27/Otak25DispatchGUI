@@ -4,17 +4,17 @@ import os
 
 class DataManager:
     def __init__(self, db_filename):
-        """Initialize connection to SQLite, optimized for Windows File Share."""
         self.db_filename = db_filename
-        # timeout=15 forces laptops to wait in line if another laptop is saving
-        self.conn = sqlite3.connect(db_filename, check_same_thread=False, timeout=15.0)
+        self.conn = sqlite3.connect(db_filename, check_same_thread=False, timeout=20.0)
         self.conn.row_factory = sqlite3.Row
         self.call_id_prefix = f"DC{datetime.now().strftime('%y')}"
         
         with self.conn:
-            # TRUNCATE is safer than WAL for network/shared drives
             self.conn.execute("PRAGMA journal_mode=TRUNCATE;")
-            self.conn.execute("PRAGMA busy_timeout = 15000;")
+            self.conn.execute("PRAGMA synchronous=NORMAL;")
+            self.conn.execute("PRAGMA busy_timeout=20000;")
+            self.conn.execute("PRAGMA temp_store=MEMORY;")
+            self.conn.execute("PRAGMA cache_size=-64000;")
             
         self._create_tables()
 
@@ -23,8 +23,7 @@ class DataManager:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS calls (
                     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ReportID TEXT UNIQUE,
-                    CallDate TEXT, CallTime TEXT,
+                    ReportID TEXT UNIQUE, CallDate TEXT, CallTime TEXT,
                     AnsweredTimestamp TEXT, AnsweredStatus BOOLEAN, AnsweredBy TEXT,
                     ResolutionTimestamp TEXT, ResolutionStatus BOOLEAN, ResolvedBy TEXT,
                     InputMedium TEXT, Source TEXT, Caller TEXT, Location TEXT,
@@ -38,6 +37,22 @@ class DataManager:
                     CallID TEXT, Timestamp TEXT, User TEXT, Action TEXT, Details TEXT
                 )
             """)
+            
+            try:
+                self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordMessageID TEXT;")
+                self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordChannelID TEXT;")
+            except sqlite3.OperationalError:
+                pass 
+
+    def check_if_updated(self):
+        try:
+            # Force SQLite to check the network drive, use MAX to avoid row-deletion phantom reads
+            self.conn.commit() 
+            cursor = self.conn.execute("SELECT MAX(HistoryID) FROM call_history")
+            result = cursor.fetchone()[0]
+            return result if result else 0
+        except Exception:
+            return -1
 
     def _log_history(self, call_id, user, action, details=""):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -40,7 +40,6 @@ if __name__ == "__main__":
         config = configparser.ConfigParser()
         config.read('config.ini')
         
-        # Load local database file path
         db_file = config.get('DATABASE', 'filename', fallback='dispatch.db')
         data_manager = DataManager(db_file)
         

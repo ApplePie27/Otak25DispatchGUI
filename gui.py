@@ -11,7 +11,6 @@ import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-# Try to load Windows Sound for audio alerts
 try:
     import winsound
     AUDIO_ENABLED = True
@@ -61,9 +60,9 @@ class DispatchCallApp:
         
         self.executor = ThreadPoolExecutor(max_workers=1)
         
-        # Audio alert tracking state
         self.known_calls = set()
         self.is_first_load = True
+        self.last_update_count = -1
         
         self.root.title("Dispatch Call Management System")
         self.root.resizable(True, True)
@@ -82,16 +81,13 @@ class DispatchCallApp:
         self.root.deiconify()
 
     def _play_siren(self):
-        """Plays 3 high-pitched warning beeps for medical/fire/security emergencies."""
         if AUDIO_ENABLED:
             winsound.Beep(900, 200)
             winsound.Beep(700, 200)
             winsound.Beep(900, 200)
 
     def _play_ping(self):
-        """Plays a standard ping for normal incoming calls."""
-        if AUDIO_ENABLED:
-            winsound.Beep(600, 400)
+        if AUDIO_ENABLED: winsound.Beep(600, 400)
         
     def _build_main_ui(self):
         self.sort_column = "ReportID"
@@ -101,20 +97,16 @@ class DispatchCallApp:
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar()
         self.code_var = tk.StringVar()
-        
         self.answered_status_var = tk.BooleanVar(value=False)
         self.answered_by_var = tk.StringVar()
-        
         self.resolution_status_var = tk.BooleanVar(value=False)
         self.resolved_by_var = tk.StringVar()
-
         self.code_description_var = tk.StringVar()
         
         self.create_status_bar()
         self.create_log_area()
         self.setup_logging_handler()
         self.status_var.set(f"User: {self.current_user} ({self.current_user_role})")
-        self.logger.info(f"User '{self.current_user}' logged in as '{self.current_user_role}'. Building UI.")
         
         self.create_table()
         self.create_menu_bar()
@@ -134,16 +126,13 @@ class DispatchCallApp:
 
     def load_config(self):
         self.config.read('config.ini')
-        self.auto_refresh_interval_ms = self.config.getint('APPLICATION', 'auto_refresh_seconds', fallback=30) * 1000
-        self.auto_scroll_var = tk.BooleanVar(
-            value=self.config.getboolean('APPLICATION', 'auto_scroll_to_latest', fallback=True)
-        )
+        self.auto_refresh_interval_ms = self.config.getint('APPLICATION', 'auto_refresh_seconds', fallback=10) * 1000
+        self.auto_scroll_var = tk.BooleanVar(value=self.config.getboolean('APPLICATION', 'auto_scroll_to_latest', fallback=True))
         
         self.desc_to_code_map = {}
         if self.config.has_section('CODES'):
             for desc, value in self.config.items('CODES'):
-                code_part = value.split('|')[0].strip()
-                self.desc_to_code_map[desc.strip()] = code_part
+                self.desc_to_code_map[desc.strip()] = value.split('|')[0].strip()
         else:
             self.desc_to_code_map = {"General situations": "No_Code"}
 
@@ -160,25 +149,22 @@ class DispatchCallApp:
     def ensure_user_logged_in(self):
         users = dict(self.config.items('USERS')) if self.config.has_section('USERS') else {}
         if not users:
-            messagebox.showerror("Configuration Error", "[USERS] section not found in config.ini. Cannot start.")
+            messagebox.showerror("Error", "[USERS] missing in config.ini")
             return False
         while not self.current_user:
             username = simpledialog.askstring("Login", "Enter your username:", parent=self.root)
-            if username is None:
-                self.logger.warning("Login cancelled by user. Shutting down.")
-                return False
+            if username is None: return False
             user = username.strip().lower()
             if user in users:
                 self.current_user = user
                 self.current_user_role = users[user]
                 return True
             else:
-                messagebox.showwarning("Login Failed", "Invalid username.", parent=self.root)
+                messagebox.showwarning("Failed", "Invalid username.")
         return True
 
     def _apply_permissions(self):
-        is_admin = self.current_user_role == 'admin'
-        if is_admin: self.history_button.grid()
+        if self.current_user_role == 'admin': self.history_button.grid()
         else: self.history_button.grid_remove()
         
     def _setup_keyboard_shortcuts(self):
@@ -274,12 +260,10 @@ class DispatchCallApp:
         self.update_code_description()
 
     def update_code_description(self, event=None):
-        situation_desc = self.code_var.get()
-        self.code_description_var.set(self.desc_to_code_map.get(situation_desc, "N/A"))
+        self.code_description_var.set(self.desc_to_code_map.get(self.code_var.get(), "N/A"))
 
     def update_source_options(self, event=None):
-        medium = self.input_medium_var.get()
-        options = self.source_options.get(medium, [])
+        options = self.source_options.get(self.input_medium_var.get(), [])
         self.source_cb['values'] = options
         self.source_var.set(options[0] if options else "")
 
@@ -292,10 +276,8 @@ class DispatchCallApp:
         
         self.primary_action_button = ttk.Button(buttons_frame, text="ADD CALL", command=self.add_call, style="Bold.TButton")
         self.primary_action_button.grid(row=0, column=0, padx=5, pady=5)
-        
         self.clear_button = ttk.Button(buttons_frame, text="Clear Fields", command=self.clear_input_fields)
         self.clear_button.grid(row=0, column=1, padx=5, pady=5)
-        
         self.history_button = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
         self.history_button.grid(row=0, column=2, padx=5, pady=5)
 
@@ -399,10 +381,11 @@ class DispatchCallApp:
                 if self.root.winfo_exists(): self.root.after(0, self._set_ui_busy, False)
         self.executor.submit(worker)
 
-    def _signal_discord_bot(self, report_id, location, code, description, source):
-        payload = {"report_id": report_id, "location": location, "code": code, "description": description, "source": source}
+    def _signal_discord_bot(self, endpoint, report_id, source=""):
+        """Sends lightweight ping to the bot so it can fetch the fresh database layout."""
+        payload = {"report_id": report_id, "source": source}
         try:
-            req = urllib.request.Request("http://localhost:8080/dispatch", data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+            req = urllib.request.Request(f"http://localhost:8080/{endpoint}", data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
             with urllib.request.urlopen(req, timeout=1.5): pass
         except Exception as e:
             self.logger.warning(f"Background Discord signaling failed: {e}")
@@ -423,14 +406,11 @@ class DispatchCallApp:
             self.logger.info(f"Call added: {new_report_id}")
             self.is_dirty = False
             
-            # Since this is local UI input, tell bot to post if not Social Media
             if self.input_medium_var.get().strip() != "Social Media":
-                self.executor.submit(self._signal_discord_bot, new_report_id, self.location_var.get().strip(),
-                                     self.code_description_var.get(), self.description_entry.get("1.0", tk.END).strip(),
-                                     self.source_var.get().strip())
+                self.executor.submit(self._signal_discord_bot, "dispatch", new_report_id, self.source_var.get().strip())
             
-            # Immediately add to known_calls so we don't trigger our own audio ping
             self.known_calls.add(new_report_id)
+            self.last_update_count = self.manager.check_if_updated()
             self.update_table(update_behavior='focus', target_id=new_report_id, was_added=True)
         else:
             messagebox.showerror("Database Error", f"Failed to add call: {new_report_id}")
@@ -439,6 +419,7 @@ class DispatchCallApp:
         if not self.table.selection(): return
         if not self._validate_fields(): return
         report_id = self.table.item(self.table.selection()[0])["values"][0]
+        
         updated_call = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
@@ -446,12 +427,18 @@ class DispatchCallApp:
             "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
             "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
         }
-        self._run_in_thread(self.manager.modify_call, self._on_modify_call_complete, report_id, updated_call, self.current_user)
+        
+        callback = lambda success, res: self._on_modify_call_complete(success, res, report_id)
+        self._run_in_thread(self.manager.modify_call, callback, report_id, updated_call, self.current_user)
 
-    def _on_modify_call_complete(self, success, result_or_error):
+    def _on_modify_call_complete(self, success, result_or_error, report_id):
         if success:
             self.is_dirty = False
+            self.last_update_count = self.manager.check_if_updated()
             self.update_table(clear_fields=True)
+            
+            # Simple ping to let the bot know it needs to refresh the embed from the DB
+            self.executor.submit(self._signal_discord_bot, "update", report_id)
         else:
             messagebox.showerror("Database Error", f"Failed to modify call: {result_or_error}")
 
@@ -571,7 +558,6 @@ class DispatchCallApp:
             call = dict(call_row)
             if call.get('Deleted'): continue
             
-            # --- AUDIO TRACKING LOGIC ---
             report_id = call.get('ReportID')
             current_calls.add(report_id)
             
@@ -585,18 +571,17 @@ class DispatchCallApp:
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
             tags = []
-            if call.get('ResolutionStatus'): tags.append("resolved")
-            elif call.get('AnsweredStatus'): tags.append("answered")
+            if str(call.get('ResolutionStatus')).lower() in ('1', 'true'): tags.append("resolved")
+            elif str(call.get('AnsweredStatus')).lower() in ('1', 'true'): tags.append("answered")
             else:
                 db_code = call.get('Code', "")
                 if not db_code or db_code.lower() == "no_code": tags.append("nocode")
                 else: tags.append("hascode")
             
-            # CORRECTED LOGIC FOR EXTRACTING ROW VALUES
             values = []
             for key in display_keys:
                 if key in ("AnsweredStatus", "ResolutionStatus"):
-                    values.append("True" if call.get(key) else "False")
+                    values.append("True" if str(call.get(key)).lower() in ('1', 'true') else "False")
                 else:
                     values.append(str(call.get(key, "")))
             
@@ -631,9 +616,23 @@ class DispatchCallApp:
 
     def _auto_refresh_task(self):
         if not self.is_dirty:
-            if self.auto_scroll_var.get(): self.update_table(update_behavior='scroll_to_end')
-            else: self.update_table(update_behavior='preserve')
-        self.start_auto_refresh()
+            self.executor.submit(self._check_network_for_updates)
+        else:
+            self.start_auto_refresh()
+
+    def _check_network_for_updates(self):
+        try:
+            current_count = self.manager.check_if_updated()
+            if current_count > self.last_update_count:
+                self.last_update_count = current_count
+                if self.auto_scroll_var.get(): 
+                    self.root.after(0, lambda: self.update_table(update_behavior='scroll_to_end'))
+                else: 
+                    self.root.after(0, lambda: self.update_table(update_behavior='preserve'))
+        except Exception as e:
+            self.logger.error(f"Network sync check failed: {e}")
+        finally:
+            self.start_auto_refresh()
 
     def view_call_history(self):
         if not self.table.selection(): return

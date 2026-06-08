@@ -6,81 +6,125 @@ import asyncio
 import threading
 import json
 import os
+import sys
+import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
+
+print("========================================")
+print("🟢 INITIALIZING HQ DISCORD BOT...")
+print("========================================")
 
 # ==========================================
 # LOAD CONFIGURATION
 # ==========================================
-config = configparser.ConfigParser()
-config.read('config.ini')
+try:
+    config = configparser.ConfigParser()
+    config.read('config.ini')
 
-DISCORD_TOKEN = config.get('DISCORD', 'bot_token')
-DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
-PORT = 8080
+    DISCORD_TOKEN = config.get('DISCORD', 'bot_token', fallback="").strip()
+    DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
+    PORT = 8080
 
-CHANNEL_MAP = {
-    "Safety": int(config.get('DISCORD', 'safety_channel')),
-    "General": int(config.get('DISCORD', 'general_channel')),
-    "First Aid": int(config.get('DISCORD', 'first_aid_channel'))
-}
+    CHANNEL_MAP = {
+        "Safety": int(config.get('DISCORD', 'safety_channel', fallback="0")),
+        "General": int(config.get('DISCORD', 'general_channel', fallback="0")),
+        "First Aid": int(config.get('DISCORD', 'first_aid_channel', fallback="0"))
+    }
+except Exception as e:
+    print(f"❌ ERROR LOADING CONFIG.INI: {e}")
+    sys.exit(1)
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 def get_db_connection():
-    """Create a network-safe SQLite connection for the Discord Bot."""
-    # Convert to absolute path - helps Windows File Share resolve the file properly
     abs_path = os.path.abspath(DB_PATH)
-    
-    # timeout=20.0 forces the bot to wait patiently if the GUI is currently saving a file
     conn = sqlite3.connect(abs_path, timeout=20.0)
     conn.row_factory = sqlite3.Row
-    
-    # CRITICAL: These must exactly match the GUI's data_manager.py settings for Network Shares
     conn.execute("PRAGMA journal_mode=TRUNCATE;")
     conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA temp_store=MEMORY;")
+    conn.execute("PRAGMA cache_size=-64000;")
     conn.execute("PRAGMA busy_timeout=20000;")
-    
     return conn
 
 # ==========================================
-# INTERACTIVE BUTTONS
+# MASTER TEMPLATE BUILDER
 # ==========================================
-class IncidentControlView(discord.ui.View):
-    def __init__(self, report_id: str):
-        super().__init__(timeout=None)
-        self.report_id = report_id
+def generate_embed(row):
+    """Builds the exact visual layout from the database row."""
+    report_id = row['ReportID']
+    is_answered = str(row['AnsweredStatus']).lower() in ('1', 'true')
+    is_resolved = str(row['ResolutionStatus']).lower() in ('1', 'true')
+    
+    if is_resolved:
+        color = discord.Color.green()
+        title = f"✅ Resolved: {report_id}"
+    elif is_answered:
+        color = discord.Color.orange()
+        title = f"🚨 Claimed: {report_id}"
+    else:
+        color = discord.Color.red()
+        if "Discord" in str(row['Source']):
+            title = f"🚨 Field Report: {report_id}"
+        else:
+            title = f"🚨 HQ Alert: {report_id}"
 
-    @discord.ui.button(label="🙋 Claim Assignment", style=discord.ButtonStyle.green, custom_id="claim_btn")
+    # PREVENT API CRASH: Discord max description length is 4096
+    safe_description = str(row['Description'])
+    if len(safe_description) > 4000:
+        safe_description = safe_description[:3997] + "..."
+
+    embed = discord.Embed(title=title, description=safe_description, color=color)
+    
+    embed.add_field(name="Location", value=str(row['Location'])[:1024], inline=True)
+    embed.add_field(name="Source Dept", value=str(row['Source']).replace("Discord: ", "")[:1024], inline=True)
+    embed.add_field(name="Incident Code", value=str(row['Code'])[:1024] if row['Code'] else "No_Code", inline=True)
+    
+    if is_answered:
+        embed.add_field(name="Assigned Responder", value=f"Claimed by {row['AnsweredBy']} at {row['AnsweredTimestamp']}", inline=False)
+        
+    if is_resolved:
+        embed.add_field(name="Resolution State", value=f"Resolved by {row['ResolvedBy']} at {row['ResolutionTimestamp']}", inline=False)
+        
+    embed.set_footer(text="HQ Dispatch Center")
+    return embed
+
+class IncidentControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🙋 Claim Assignment", style=discord.ButtonStyle.green, custom_id="claim_incident_btn")
     async def claim_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Dynamically extract Report ID from the Embed Title
+        report_id = interaction.message.embeds[0].title.split(': ')[-1].strip()
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         user_display = interaction.user.display_name
         conn = get_db_connection()
 
         try:
             with conn:
-                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (self.report_id,))
+                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
                 call = cursor.fetchone()
                 
                 if not call:
-                    await interaction.response.send_message("Incident record not found.", ephemeral=True)
-                    return
-                if call['AnsweredStatus']:
-                    await interaction.response.send_message("Incident already claimed.", ephemeral=True)
-                    return
+                    return await interaction.response.send_message("Incident record not found.", ephemeral=True)
+                if str(call['AnsweredStatus']).lower() in ('1', 'true'):
+                    return await interaction.response.send_message("Incident already claimed.", ephemeral=True)
 
-                conn.execute("""UPDATE calls SET AnsweredStatus = 1, AnsweredBy = ?, AnsweredTimestamp = ? WHERE ReportID = ?""", 
-                               (user_display, now, self.report_id))
-                conn.execute("""INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)""", 
-                               (self.report_id, now, "Discord Bot", "Call Answered", f"Claimed by {user_display}"))
+                conn.execute("UPDATE calls SET AnsweredStatus = 1, AnsweredBy = ?, AnsweredTimestamp = ? WHERE ReportID = ?", 
+                               (user_display, now, report_id))
+                conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)", 
+                               (report_id, now, "Discord Bot", "Call Answered", f"Claimed by {user_display}"))
+                
+                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+                fresh_row = cursor.fetchone()
 
-            embed = interaction.message.embeds[0]
-            embed.color = discord.Color.orange()
-            embed.add_field(name="Assigned Responder", value=f"Claimed by {user_display} at {now}", inline=False)
-            button.disabled = True
-            button.label = "Claimed"
+            embed = generate_embed(fresh_row)
+            self.children[0].disabled = True
+            self.children[0].label = "Claimed"
             
             await interaction.response.edit_message(embed=embed, view=self)
             
@@ -89,29 +133,31 @@ class IncidentControlView(discord.ui.View):
         finally:
             conn.close()
 
-    @discord.ui.button(label="✅ Resolve Incident", style=discord.ButtonStyle.blurple, custom_id="resolve_btn")
+    @discord.ui.button(label="✅ Resolve Incident", style=discord.ButtonStyle.blurple, custom_id="resolve_incident_btn")
     async def resolve_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        report_id = interaction.message.embeds[0].title.split(': ')[-1].strip()
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         user_display = interaction.user.display_name
         conn = get_db_connection()
 
         try:
             with conn:
-                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (self.report_id,))
+                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
                 call = cursor.fetchone()
-                if call['ResolutionStatus']:
-                    await interaction.response.send_message("Incident already resolved.", ephemeral=True)
-                    return
+                if str(call['ResolutionStatus']).lower() in ('1', 'true'):
+                    return await interaction.response.send_message("Incident already resolved.", ephemeral=True)
 
-                conn.execute("""UPDATE calls SET ResolutionStatus = 1, ResolvedBy = ?, ResolutionTimestamp = ? WHERE ReportID = ?""", 
-                               (user_display, now, self.report_id))
-                conn.execute("""INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)""", 
-                               (self.report_id, now, "Discord Bot", "Call Resolved", f"Resolved by {user_display}"))
+                conn.execute("UPDATE calls SET ResolutionStatus = 1, ResolvedBy = ?, ResolutionTimestamp = ? WHERE ReportID = ?", 
+                               (user_display, now, report_id))
+                conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)", 
+                               (report_id, now, "Discord Bot", "Call Resolved", f"Resolved by {user_display}"))
 
-            embed = interaction.message.embeds[0]
-            embed.color = discord.Color.green()
-            embed.title = f"✅ Resolved: {self.report_id}"
-            for child in self.children: child.disabled = True
+                cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+                fresh_row = cursor.fetchone()
+
+            embed = generate_embed(fresh_row)
+            self.children[0].disabled = True
+            self.children[1].disabled = True
                 
             await interaction.response.edit_message(embed=embed, view=self)
         except Exception as e:
@@ -119,22 +165,18 @@ class IncidentControlView(discord.ui.View):
         finally:
             conn.close()
 
-# ==========================================
-# VOLUNTEER-TO-HQ REPORTING MODAL
-# ==========================================
 class IncidentReportModal(discord.ui.Modal, title="🚨 Report Emergency to HQ"):
-    location = discord.ui.TextInput(label="Exact Location", placeholder="E.g., Hall A, Main Stage", required=True)
-    situation = discord.ui.TextInput(label="Situation (Optional Code)", placeholder="E.g., Medical, General", required=False)
-    description = discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph, required=True)
+    location = discord.ui.TextInput(label="Exact Location", placeholder="E.g., Hall A, Main Stage", required=True, max_length=1000)
+    situation = discord.ui.TextInput(label="Situation (Optional Code)", placeholder="E.g., Blue, Adam, Orange, etc.", required=False, max_length=100)
+    description = discord.ui.TextInput(label="Description", style=discord.TextStyle.paragraph, required=True, max_length=3990)
 
     async def on_submit(self, interaction: discord.Interaction):
         now = datetime.now()
         call_id_prefix = f"DC{now.strftime('%y')}"
         discord_user = interaction.user.display_name
         
-        # Capture the name of the Discord channel where the command was typed
         channel_source = f"Discord: #{interaction.channel.name}"
-        
+        incident_code = self.situation.value.strip() if self.situation.value.strip() else "No_Code"
         conn = get_db_connection()
         
         try:
@@ -144,28 +186,31 @@ class IncidentReportModal(discord.ui.Modal, title="🚨 Report Emergency to HQ")
                     INSERT INTO calls (
                         CallDate, CallTime, AnsweredTimestamp, AnsweredStatus, AnsweredBy,
                         ResolutionTimestamp, ResolutionStatus, ResolvedBy, InputMedium, Source, 
-                        Caller, Location, Code, Description, CreatedBy, ModifiedBy, RedFlag,
-                        ReportNumber, Deleted
+                        Caller, Location, Code, Description, CreatedBy, ModifiedBy, RedFlag, ReportNumber, Deleted
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     now.strftime("%Y-%m-%d"), now.strftime("%H:%M"), "", False, "", "", False, "",
                     "Social Media", channel_source, discord_user, self.location.value, 
-                    self.situation.value or "No_Code", self.description.value, discord_user, "", False, "", False
+                    incident_code, self.description.value, discord_user, "", False, "", False
                 ))
-                
                 new_id = cursor.lastrowid
                 report_id = f"{call_id_prefix}-{new_id:04d}"
                 cursor.execute("UPDATE calls SET ReportID = ? WHERE ID = ?", (report_id, new_id))
+                cursor.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)", 
+                               (report_id, now.strftime("%Y-%m-%d %H:%M:%S"), "Discord Bot", "Call Created", "Reported via Discord Modal"))
                 
-            await interaction.response.send_message(f"✅ Incident **{report_id}** successfully transmitted to HQ Dispatch.", ephemeral=True)
+                cursor.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+                fresh_row = cursor.fetchone()
+                
+            await interaction.response.send_message(f"✅ Incident **{report_id}** successfully transmitted to HQ.", ephemeral=True)
             
-            # Post the interactive card into the channel so others can claim it
-            channel = interaction.channel
-            embed = discord.Embed(title=f"🚨 Field Report: {report_id}", description=self.description.value, color=discord.Color.red())
-            embed.add_field(name="Location", value=self.location.value, inline=True)
-            embed.add_field(name="Reported By", value=discord_user, inline=True)
-            await channel.send(embed=embed, view=IncidentControlView(report_id))
+            embed = generate_embed(fresh_row)
+            view = IncidentControlView()
+            msg = await interaction.channel.send(embed=embed, view=view)
             
+            with conn:
+                conn.execute("UPDATE calls SET DiscordMessageID=?, DiscordChannelID=? WHERE ReportID=?", 
+                             (str(msg.id), str(interaction.channel.id), report_id))
         except Exception as e:
             await interaction.response.send_message(f"Failed to submit: {e}", ephemeral=True)
         finally:
@@ -182,34 +227,120 @@ class LocalCommunicationServer(BaseHTTPRequestHandler):
     def log_message(self, format, *args): pass
 
     def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        data = json.loads(self.rfile.read(content_length).decode('utf-8'))
+        
         if self.path == "/dispatch":
-            content_length = int(self.headers['Content-Length'])
-            data = json.loads(self.rfile.read(content_length).decode('utf-8'))
-            
-            asyncio.run_coroutine_threadsafe(
-                post_dispatch_message(data.get("report_id"), data.get("location"), data.get("code"), data.get("description"), data.get("source")),
-                bot.loop
-            )
+            asyncio.run_coroutine_threadsafe(post_dispatch_message(data.get("report_id"), data.get("source")), bot.loop)
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == "/update":
+            asyncio.run_coroutine_threadsafe(edit_dispatch_message(data.get("report_id")), bot.loop)
             self.send_response(200)
             self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
 
-async def post_dispatch_message(report_id, location, code, description, source):
-    channel_id = CHANNEL_MAP.get(source, CHANNEL_MAP["General"])
-    channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+async def post_dispatch_message(report_id, source):
+    await asyncio.sleep(0.5)
+    conn = get_db_connection()
+    try:
+        conn.commit()
+        cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+        row = cursor.fetchone()
+        if not row: return
 
-    embed = discord.Embed(title=f"🚨 New HQ Alert: {report_id}", description=description, color=discord.Color.red())
-    embed.add_field(name="Location", value=location, inline=True)
-    embed.add_field(name="Code", value=code if code else "No_Code", inline=True)
-    await channel.send(embed=embed, view=IncidentControlView(report_id))
+        channel_id = CHANNEL_MAP.get(source, CHANNEL_MAP["General"])
+        channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+
+        embed = generate_embed(row)
+        view = IncidentControlView()
+        
+        is_answered = str(row['AnsweredStatus']).lower() in ('1', 'true')
+        is_resolved = str(row['ResolutionStatus']).lower() in ('1', 'true')
+        if is_answered or is_resolved:
+            view.children[0].disabled = True
+            view.children[0].label = "Claimed"
+        if is_resolved:
+            view.children[1].disabled = True
+            
+        msg = await channel.send(embed=embed, view=view)
+        
+        conn.execute("UPDATE calls SET DiscordMessageID=?, DiscordChannelID=? WHERE ReportID=?", (str(msg.id), str(channel.id), report_id))
+        conn.commit()
+    except Exception as e:
+        print(f"[BOT ERROR] Post failed: {e}")
+    finally:
+        conn.close()
+
+async def edit_dispatch_message(report_id):
+    await asyncio.sleep(0.5)
+    conn = get_db_connection()
+    try:
+        conn.commit()
+        cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+        row = cursor.fetchone()
+        
+        if not row or not row['DiscordMessageID'] or not row['DiscordChannelID']: return
+            
+        channel = bot.get_channel(int(row['DiscordChannelID'])) or await bot.fetch_channel(int(row['DiscordChannelID']))
+        message = await channel.fetch_message(int(row['DiscordMessageID']))
+        
+        embed = generate_embed(row)
+        view = IncidentControlView()
+        
+        is_answered = str(row['AnsweredStatus']).lower() in ('1', 'true')
+        is_resolved = str(row['ResolutionStatus']).lower() in ('1', 'true')
+        if is_answered or is_resolved:
+            view.children[0].disabled = True
+            view.children[0].label = "Claimed"
+        if is_resolved:
+            view.children[1].disabled = True
+                
+        await message.edit(embed=embed, view=view)
+    except Exception as e:
+        print(f"[BOT ERROR] Discord update failed for {report_id}: {e}")
+    finally:
+        conn.close()
+
+# FIX: Correctly registering the persistent view hook (No @bot.event decorator here)
+async def setup_bot_hook():
+    print("✅ Registering persistent UI buttons...")
+    bot.add_view(IncidentControlView())
+
+bot.setup_hook = setup_bot_hook
 
 @bot.event
 async def on_ready():
-    print(f"SQLite Discord Dispatch Bot active as {bot.user}")
+    print(f"✅ Bot successfully logged into Discord as {bot.user}")
+    print("✅ Syncing slash commands...")
     await bot.tree.sync()
+    print("🚨 BOT IS FULLY ONLINE AND READY.")
 
 if __name__ == "__main__":
-    threading.Thread(target=lambda: HTTPServer(('localhost', PORT), LocalCommunicationServer).serve_forever(), daemon=True).start()
-    bot.run(DISCORD_TOKEN)
+    try:
+        if not DISCORD_TOKEN:
+            print("❌ FATAL: The DISCORD_TOKEN in config.ini is empty or missing.")
+            sys.exit(1)
+
+        print(f"✅ Starting Local IPC GUI Communicator on Port {PORT}...")
+        server_thread = threading.Thread(
+            target=lambda: HTTPServer(('localhost', PORT), LocalCommunicationServer).serve_forever(), 
+            daemon=True
+        )
+        server_thread.start()
+        
+        print("✅ Attempting to connect to Discord API...")
+        bot.run(DISCORD_TOKEN)
+
+    except discord.errors.LoginFailure:
+        print("❌ FATAL: Invalid Discord Token. Please check your config.ini")
+    except OSError as e:
+        if e.errno == 10048:
+            print(f"❌ FATAL: Port {PORT} is already in use. Is another copy of the bot running in the background?")
+        else:
+            print(f"❌ OS ERROR: {e}")
+    except Exception as e:
+        print(f"❌ CRASH: An unexpected error occurred: {e}")
+        traceback.print_exc()
