@@ -37,16 +37,21 @@ class DataManager:
                     CallID TEXT, Timestamp TEXT, User TEXT, Action TEXT, Details TEXT
                 )
             """)
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS passdown_notes (
+                    NoteID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT, User TEXT, Note TEXT
+                )
+            """)
             
-            try:
-                self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordMessageID TEXT;")
-                self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordChannelID TEXT;")
-            except sqlite3.OperationalError:
-                pass 
+            try: self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordMessageID TEXT;")
+            except sqlite3.OperationalError: pass 
+
+            try: self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordChannelID TEXT;")
+            except sqlite3.OperationalError: pass 
 
     def check_if_updated(self):
         try:
-            # Force SQLite to check the network drive, use MAX to avoid row-deletion phantom reads
             self.conn.commit() 
             cursor = self.conn.execute("SELECT MAX(HistoryID) FROM call_history")
             result = cursor.fetchone()[0]
@@ -78,6 +83,19 @@ class DataManager:
         cursor = self.conn.execute("SELECT * FROM call_history WHERE CallID = ? ORDER BY Timestamp DESC", (report_id,))
         return cursor.fetchall()
 
+    def get_full_audit_log(self):
+        cursor = self.conn.execute("SELECT * FROM call_history ORDER BY HistoryID ASC")
+        return cursor.fetchall()
+
+    def get_passdown_notes(self):
+        cursor = self.conn.execute("SELECT * FROM passdown_notes ORDER BY Timestamp DESC LIMIT 50")
+        return cursor.fetchall()
+
+    def add_passdown_note(self, user, note):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.conn:
+            self.conn.execute("INSERT INTO passdown_notes (Timestamp, User, Note) VALUES (?, ?, ?)", (timestamp, user, note))
+
     def add_call(self, call, current_user):
         now = datetime.now()
         with self.conn: 
@@ -101,9 +119,10 @@ class DataManager:
         return report_id
 
     def modify_call(self, report_id, updated_call, current_user):
-        original_call = self.get_call_by_id(report_id)
-        if not original_call: raise ValueError("Call not found.")
-            
+        original_call_row = self.get_call_by_id(report_id)
+        if not original_call_row: raise ValueError("Call not found.")
+        
+        original_call = dict(original_call_row)
         modification_details = []
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         
@@ -144,9 +163,11 @@ class DataManager:
                 WHERE ReportID=?
             """, (
                 updated_call['InputMedium'], updated_call['Source'], updated_call['Caller'],
-                updated_call['Location'], updated_call['Code'], updated_call['Description'],
-                updated_call['AnsweredStatus'], updated_call['AnsweredBy'], updated_call.get('AnsweredTimestamp', original_call['AnsweredTimestamp']),
-                updated_call['ResolutionStatus'], updated_call['ResolvedBy'], updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
+                updated_call['Location'], updated_call['Code'], updated_call['Description'], 
+                updated_call['AnsweredStatus'], updated_call['AnsweredBy'], 
+                updated_call.get('AnsweredTimestamp', original_call['AnsweredTimestamp']),
+                updated_call['ResolutionStatus'], updated_call['ResolvedBy'], 
+                updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
                 updated_call['ModifiedBy'], report_id
             ))
         return True

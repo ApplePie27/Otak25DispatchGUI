@@ -1,4 +1,4 @@
-import tkinter as tk
+﻿import tkinter as tk
 from gui import DispatchCallApp
 from data_manager import DataManager
 import logging
@@ -6,6 +6,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 import configparser
+import traceback
 
 def setup_logging():
     try:
@@ -52,4 +53,11 @@ if __name__ == "__main__":
             root.mainloop()
 
     except Exception as e:
-        app_logger.critical(f"A critical unhandled exception occurred during application run: {e}", exc_info=True)
+        # LOUD CRASH CATCHER!
+        print("\n" + "!"*50)
+        print("🚨 CRITICAL UI CRASH DETECTED 🚨")
+        print("!"*50)
+        traceback.print_exc()
+        print("!"*50)
+        app_logger.critical(f"Unhandled exception: {e}", exc_info=True)
+        input("Press Enter to close this window...")

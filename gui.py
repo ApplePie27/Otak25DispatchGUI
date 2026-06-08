@@ -1,4 +1,4 @@
-import tkinter as tk
+﻿import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog, scrolledtext
 from data_manager import DataManager
 from datetime import datetime
@@ -17,6 +17,12 @@ try:
 except ImportError:
     AUDIO_ENABLED = False
 
+try:
+    import sv_ttk
+    HAS_SV_TTK = True
+except ImportError:
+    HAS_SV_TTK = False
+
 class ToolTip:
     def __init__(self, widget, text):
         self.widget = widget
@@ -32,7 +38,7 @@ class ToolTip:
         self.tooltip = tk.Toplevel(self.widget)
         self.tooltip.wm_overrideredirect(True)
         self.tooltip.wm_geometry(f"+{int(x)}+{int(y)}")
-        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", relief="solid", 
+        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", foreground="black", relief="solid", 
                          borderwidth=1, font=("tahoma", "8", "normal"),
                          wraplength=300, justify='left')
         label.pack(ipadx=2, ipady=2)
@@ -63,9 +69,14 @@ class DispatchCallApp:
         self.known_calls = set()
         self.is_first_load = True
         self.last_update_count = -1
+        self.last_redraw_time = datetime.now()
         
-        self.root.title("Dispatch Call Management System")
+        self.root.title("HQ Dispatch Center V3.0")
         self.root.resizable(True, True)
+        
+        if HAS_SV_TTK:
+            sv_ttk.set_theme("dark")
+            
         self.config = configparser.ConfigParser()
         self.load_config()
         self.current_user = None
@@ -78,17 +89,50 @@ class DispatchCallApp:
             return
             
         self._build_main_ui()
+        self.apply_theme_colors() # Apply dynamic colors instantly on boot
         self.root.deiconify()
 
     def _play_siren(self):
         if AUDIO_ENABLED:
-            winsound.Beep(900, 200)
-            winsound.Beep(700, 200)
-            winsound.Beep(900, 200)
+            # Rapid-fire Submarine Dive Klaxon for Maximum Alertness
+            for _ in range(8):
+                winsound.Beep(1500, 150) 
+                winsound.Beep(1000, 150)
 
     def _play_ping(self):
         if AUDIO_ENABLED: winsound.Beep(600, 400)
+
+    def _sanitize_for_tkinter(self, text):
+        if not text: return ""
+        return ''.join(c for c in str(text) if ord(c) <= 0xFFFF)
         
+    def toggle_theme(self):
+        if HAS_SV_TTK:
+            if sv_ttk.get_theme() == "dark":
+                sv_ttk.set_theme("light")
+            else:
+                sv_ttk.set_theme("dark")
+            self.apply_theme_colors()
+
+    def apply_theme_colors(self):
+        if not HAS_SV_TTK: return
+        is_dark = sv_ttk.get_theme() == "dark"
+        
+        # Adjust Description Text Box
+        bg_color = "#1e1e1e" if is_dark else "#ffffff"
+        fg_color = "white" if is_dark else "black"
+        self.description_entry.configure(bg=bg_color, fg=fg_color, insertbackground=fg_color)
+        
+        # Adjust Table Tag Colors dynamically
+        self.table.tag_configure("hascode", background="#333333" if is_dark else "#ffffff", foreground="white" if is_dark else "black")
+        self.table.tag_configure("nocode", background="#222222" if is_dark else "#d3d3d3", foreground="white" if is_dark else "black")
+        self.table.tag_configure("answered", background="#2f4f4f" if is_dark else "#FFFFE0", foreground="white" if is_dark else "black")
+        self.table.tag_configure("resolved", background="#1e4d2b" if is_dark else "#d0f0c0", foreground="white" if is_dark else "black")
+        
+        # SLA tags stay bright warning colors regardless of theme
+        self.table.tag_configure("sla_warning", background="#B8860B", foreground="white") 
+        self.table.tag_configure("sla_critical", background="#8B0000", foreground="white") 
+
     def _build_main_ui(self):
         self.sort_column = "ReportID"
         self.sort_direction = "ASC"
@@ -164,8 +208,12 @@ class DispatchCallApp:
         return True
 
     def _apply_permissions(self):
-        if self.current_user_role == 'admin': self.history_button.grid()
-        else: self.history_button.grid_remove()
+        if self.current_user_role == 'admin': 
+            self.history_button.grid()
+            self.file_menu.entryconfig("Export Complete Audit Log", state="normal")
+        else: 
+            self.history_button.grid_remove()
+            self.file_menu.entryconfig("Export Complete Audit Log", state="disabled")
         
     def _setup_keyboard_shortcuts(self):
         self.root.bind('<Control-s>', lambda event: self.modify_call() if self.table.selection() else None)
@@ -197,8 +245,15 @@ class DispatchCallApp:
     def create_menu_bar(self):
         menubar = tk.Menu(self.root)
         self.file_menu = tk.Menu(menubar, tearoff=0)
+        
+        # New Theme Toggle Button
+        if HAS_SV_TTK:
+            self.file_menu.add_command(label="Toggle Light/Dark Mode 🌓", command=self.toggle_theme)
+            self.file_menu.add_separator()
+            
         self.file_menu.add_command(label="Change User", command=self.change_user)
         self.file_menu.add_command(label="Export Report to CSV", command=self.export_report)
+        self.file_menu.add_command(label="Export Complete Audit Log", command=self.export_audit_log)
         self.file_menu.add_separator()
         self.file_menu.add_command(label="Exit", command=self.on_close)
         menubar.add_cascade(label="File", menu=self.file_menu)
@@ -240,7 +295,8 @@ class DispatchCallApp:
         ttk.Label(fields_frame, textvariable=self.code_description_var, font=("TkDefaultFont", 9, "bold")).grid(row=3, column=3, columnspan=2, padx=5, pady=2, sticky="w")
         
         ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=2, sticky="nw")
-        self.description_entry = scrolledtext.ScrolledText(fields_frame, height=5, width=60, borderwidth=0)
+        
+        self.description_entry = scrolledtext.ScrolledText(fields_frame, height=5, width=60, borderwidth=1, relief="solid")
         self.description_entry.grid(row=4, column=1, columnspan=4, padx=5, pady=2, sticky="w")
         
         ttk.Checkbutton(fields_frame, text="Answered", variable=self.answered_status_var, command=self.toggle_answered_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
@@ -280,15 +336,17 @@ class DispatchCallApp:
         self.clear_button.grid(row=0, column=1, padx=5, pady=5)
         self.history_button = ttk.Button(buttons_frame, text="View History", command=self.view_call_history)
         self.history_button.grid(row=0, column=2, padx=5, pady=5)
+        self.passdown_button = ttk.Button(buttons_frame, text="📋 Shift Passdown Notes", command=self.open_passdown_notes)
+        self.passdown_button.grid(row=0, column=3, padx=(30, 5), pady=5)
 
-        self.action_buttons = [self.primary_action_button, self.clear_button, self.history_button]
+        self.action_buttons = [self.primary_action_button, self.clear_button, self.history_button, self.passdown_button]
 
     def _on_manual_scroll(self, event=None):
         self.auto_scroll_var.set(False)
 
     def create_table(self):
         self.columns = {
-            "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60),
+            "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60), "TimeOpen": ("Time Open", 80),
             "AnsweredStatus": ("Answered?", 70), "AnsweredTimestamp": ("Answered At", 120), "AnsweredBy": ("Answered By", 100),
             "ResolutionStatus": ("Resolved?", 70), "ResolutionTimestamp": ("Resolved At", 120), "ResolvedBy": ("Resolved By", 100),
             "InputMedium": ("Medium", 100), "Source": ("Source", 100), "Caller": ("Caller", 100),
@@ -309,11 +367,6 @@ class DispatchCallApp:
         self.scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=self.scrollbar.set)
         
-        self.table.tag_configure("hascode", background="#ffffff")
-        self.table.tag_configure("nocode", background="#d3d3d3")
-        self.table.tag_configure("answered", background="#FFFFE0")
-        self.table.tag_configure("resolved", background="#d0f0c0")
-        
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
         self.table.bind("<MouseWheel>", self._on_manual_scroll)
         self.scrollbar.bind("<ButtonPress-1>", self._on_manual_scroll)
@@ -323,6 +376,7 @@ class DispatchCallApp:
         self.scrollbar.grid(row=0, column=1, sticky="ns")
 
     def sort_table(self, col):
+        if col == "TimeOpen": col = "CallTime"
         if self.sort_column == col: self.sort_direction = "DESC" if self.sort_direction == "ASC" else "ASC"
         else: self.sort_column, self.sort_direction = col, "ASC"
         self.update_table(update_behavior='preserve')
@@ -382,7 +436,6 @@ class DispatchCallApp:
         self.executor.submit(worker)
 
     def _signal_discord_bot(self, endpoint, report_id, source=""):
-        """Sends lightweight ping to the bot so it can fetch the fresh database layout."""
         payload = {"report_id": report_id, "source": source}
         try:
             req = urllib.request.Request(f"http://localhost:8080/{endpoint}", data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
@@ -392,6 +445,8 @@ class DispatchCallApp:
 
     def add_call(self):
         if not self._validate_fields(): return
+        self.primary_action_button.config(state="disabled")
+
         call_data = {
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
@@ -414,10 +469,14 @@ class DispatchCallApp:
             self.update_table(update_behavior='focus', target_id=new_report_id, was_added=True)
         else:
             messagebox.showerror("Database Error", f"Failed to add call: {new_report_id}")
+            self.primary_action_button.config(state="normal")
 
     def modify_call(self):
         if not self.table.selection(): return
         if not self._validate_fields(): return
+        
+        self.primary_action_button.config(state="disabled")
+
         report_id = self.table.item(self.table.selection()[0])["values"][0]
         
         updated_call = {
@@ -436,11 +495,10 @@ class DispatchCallApp:
             self.is_dirty = False
             self.last_update_count = self.manager.check_if_updated()
             self.update_table(clear_fields=True)
-            
-            # Simple ping to let the bot know it needs to refresh the embed from the DB
             self.executor.submit(self._signal_discord_bot, "update", report_id)
         else:
             messagebox.showerror("Database Error", f"Failed to modify call: {result_or_error}")
+            self.primary_action_button.config(state="normal")
 
     def load_selected_call(self, event):
         if self.is_dirty and not messagebox.askyesno("Unsaved Changes", "Discard unsaved changes?"): return "break"
@@ -449,14 +507,21 @@ class DispatchCallApp:
         self.primary_action_button.config(text="SAVE MODIFICATION", command=self.modify_call, style="Bold.TButton")
         item = self.table.item(self.table.selection()[0])
         call = dict(zip(self.columns.keys(), item['values']))
+        report_id = call.get("ReportID")
         
         self.is_loading_data = True
+        self._run_in_thread(self.manager.get_call_by_id, self._on_load_selected_fetched, report_id)
+
+    def _on_load_selected_fetched(self, success, full_call):
         try:
+            if not success or not full_call: return
+            
+            call = dict(full_call)
             self.input_medium_var.set(call.get("InputMedium", ""))
             self.update_source_options()
             self.source_var.set(call.get("Source", ""))
-            self.caller_var.set(call.get("Caller", ""))
-            self.location_var.set(call.get("Location", ""))
+            self.caller_var.set(self._sanitize_for_tkinter(call.get("Caller", "")))
+            self.location_var.set(self._sanitize_for_tkinter(call.get("Location", "")))
             
             db_code = call.get("Code", "")
             sit_desc = next((k for k, v in self.desc_to_code_map.items() if v == db_code), None)
@@ -465,18 +530,19 @@ class DispatchCallApp:
             self.update_code_description()
             
             self.description_entry.delete("1.0", tk.END)
-            self.description_entry.insert(tk.END, call.get("Description", ""))
+            self.description_entry.insert(tk.END, self._sanitize_for_tkinter(call.get("Description", "")))
 
             self.answered_status_var.set(str(call.get("AnsweredStatus", "False")).lower() in ('true', '1'))
             self.toggle_answered_entry()
-            self.answered_by_var.set(call.get("AnsweredBy", ""))
+            self.answered_by_var.set(self._sanitize_for_tkinter(call.get("AnsweredBy", "")))
 
             self.resolution_status_var.set(str(call.get("ResolutionStatus", "False")).lower() in ('true', '1'))
             self.toggle_resolved_entry()
-            self.resolved_by_var.set(call.get("ResolvedBy", ""))
-
-        finally: self.is_loading_data = False
-        self.is_dirty = False
+            self.resolved_by_var.set(self._sanitize_for_tkinter(call.get("ResolvedBy", "")))
+            
+        finally: 
+            self.is_loading_data = False
+            self.is_dirty = False
 
     def clear_input_fields(self):
         if self.is_dirty and not messagebox.askyesno("Unsaved Changes", "Discard unsaved changes?"): return
@@ -509,20 +575,25 @@ class DispatchCallApp:
         except AttributeError: pass
 
     def export_report(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], title="Export Dispatch Calls")
         if not filename: return
         self._run_in_thread(self.manager.get_all_calls, lambda s, r: self._on_export_data_fetched(s, r, filename), self.sort_column, self.sort_direction)
 
-    def _on_export_data_fetched(self, success, calls, filename):
-        if not success or not calls: return
+    def export_audit_log(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], title="Export Audit Log")
+        if not filename: return
+        self._run_in_thread(self.manager.get_full_audit_log, lambda s, r: self._on_export_data_fetched(s, r, filename))
+
+    def _on_export_data_fetched(self, success, rows, filename):
+        if not success or not rows: return
         try:
             with open(filename, "w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=calls[0].keys())
+                writer = csv.DictWriter(file, fieldnames=rows[0].keys())
                 writer.writeheader()
-                for call in calls: writer.writerow(dict(call))
-            messagebox.showinfo("Export Successful", f"Report successfully exported to\n{filename}")
+                for row in rows: writer.writerow(dict(row))
+            messagebox.showinfo("Export Successful", f"Data successfully exported to\n{filename}")
         except Exception as e:
-            messagebox.showerror("Export Error", f"Failed to write report file: {e}")
+            messagebox.showerror("Export Error", f"Failed to write CSV file: {e}")
             
     def change_user(self):
         if self.is_dirty and not messagebox.askyesno("Unsaved Changes", "Continue and lose changes?"): return
@@ -553,6 +624,7 @@ class DispatchCallApp:
         current_calls = set()
         new_high_priority = False
         new_standard_call = False
+        now = datetime.now()
 
         for call_row in all_calls:
             call = dict(call_row)
@@ -563,27 +635,42 @@ class DispatchCallApp:
             
             if not self.is_first_load and report_id not in self.known_calls:
                 db_code = call.get('Code', "")
-                if db_code in ["Red", "Blue", "Orange", "Silver", "Signal_13", "Adam", "Black"]:
-                    new_high_priority = True
-                else:
-                    new_standard_call = True
+                if db_code in ["Red", "Blue", "Orange", "Silver", "Signal_13", "Adam", "Black"]: new_high_priority = True
+                else: new_standard_call = True
 
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
+            is_ans = str(call.get('AnsweredStatus', "False")).lower() in ('1', 'true')
+            is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
+            
+            try:
+                call_dt = datetime.strptime(f"{call['CallDate']} {call['CallTime']}", "%Y-%m-%d %H:%M")
+                minutes_open = (now - call_dt).total_seconds() / 60
+            except:
+                minutes_open = 0
+            
             tags = []
-            if str(call.get('ResolutionStatus')).lower() in ('1', 'true'): tags.append("resolved")
-            elif str(call.get('AnsweredStatus')).lower() in ('1', 'true'): tags.append("answered")
+            if is_res:
+                tags.append("resolved")
+                call["TimeOpen"] = "Closed"
             else:
-                db_code = call.get('Code', "")
-                if not db_code or db_code.lower() == "no_code": tags.append("nocode")
-                else: tags.append("hascode")
+                call["TimeOpen"] = f"{int(minutes_open)} min"
+                
+                if not is_ans and minutes_open >= 5: tags.append("sla_warning")
+                elif is_ans and minutes_open >= 30: tags.append("sla_critical")
+                elif is_ans: tags.append("answered")
+                else:
+                    db_code = call.get('Code', "")
+                    tags.append("nocode" if not db_code or db_code.lower() == "no_code" else "hascode")
             
             values = []
             for key in display_keys:
                 if key in ("AnsweredStatus", "ResolutionStatus"):
                     values.append("True" if str(call.get(key)).lower() in ('1', 'true') else "False")
+                elif key == "TimeOpen":
+                    values.append(call.get(key))
                 else:
-                    values.append(str(call.get(key, "")))
+                    values.append(self._sanitize_for_tkinter(call.get(key, "")))
             
             item_id = self.table.insert("", tk.END, values=values, tags=tags)
             item_map[values[0]] = item_id
@@ -606,7 +693,7 @@ class DispatchCallApp:
             if pre_selection_id and pre_selection_id in item_map: self.table.selection_set(item_map[pre_selection_id])
             if pre_refresh_yview and pre_refresh_yview[0] is not None: self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
                 
-        if clear_fields: self.clear_input_fields()
+        if clear_fields and not self.is_dirty: self.clear_input_fields()
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
 
     def on_search(self, event=None): self.update_table(update_behavior='preserve')
@@ -615,16 +702,16 @@ class DispatchCallApp:
         self._auto_refresh_job = self.root.after(self.auto_refresh_interval_ms, self._auto_refresh_task)
 
     def _auto_refresh_task(self):
-        if not self.is_dirty:
-            self.executor.submit(self._check_network_for_updates)
-        else:
-            self.start_auto_refresh()
+        self.executor.submit(self._check_network_for_updates)
 
     def _check_network_for_updates(self):
         try:
             current_count = self.manager.check_if_updated()
-            if current_count > self.last_update_count:
+            now = datetime.now()
+            
+            if current_count > self.last_update_count or (now - self.last_redraw_time).total_seconds() >= 60:
                 self.last_update_count = current_count
+                self.last_redraw_time = now
                 if self.auto_scroll_var.get(): 
                     self.root.after(0, lambda: self.update_table(update_behavior='scroll_to_end'))
                 else: 
@@ -633,6 +720,38 @@ class DispatchCallApp:
             self.logger.error(f"Network sync check failed: {e}")
         finally:
             self.start_auto_refresh()
+
+    def open_passdown_notes(self):
+        self._run_in_thread(self.manager.get_passdown_notes, self._on_passdown_fetched)
+        
+    def _on_passdown_fetched(self, success, notes):
+        pd_win = tk.Toplevel(self.root)
+        pd_win.title("Shift Passdown Notes")
+        pd_win.geometry("600x400")
+        
+        note_display = scrolledtext.ScrolledText(pd_win, width=70, height=15, state="normal")
+        note_display.pack(padx=10, pady=10, fill='both', expand=True)
+        
+        if notes:
+            for n in reversed(notes):
+                note_display.insert(tk.END, f"[{n['Timestamp']}] {n['User']}:\n{n['Note']}\n{'-'*50}\n")
+        note_display.configure(state="disabled")
+        note_display.see(tk.END)
+        
+        input_frame = ttk.Frame(pd_win)
+        input_frame.pack(fill='x', padx=10, pady=(0, 10))
+        
+        new_note = ttk.Entry(input_frame)
+        new_note.pack(side="left", fill='x', expand=True, padx=(0, 5))
+        
+        def save_note():
+            val = new_note.get().strip()
+            if val:
+                self.manager.add_passdown_note(self.current_user, val)
+                pd_win.destroy()
+                self.open_passdown_notes()
+                
+        ttk.Button(input_frame, text="Add Note", command=save_note).pack(side="right")
 
     def view_call_history(self):
         if not self.table.selection(): return

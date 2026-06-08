@@ -639,3 +639,59 @@ AttributeError: 'DispatchCallApp' object has no attribute 'ensure_user_logged_in
 2026-06-07 20:00:37,501 - DispatchApp - INFO - Application starting up.
 2026-06-07 20:06:45,191 - DispatchApp - INFO - Application starting up.
 2026-06-07 20:20:16,799 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:38:09,142 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:39:19,687 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:45:03,782 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:46:10,646 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:46:37,331 - DispatchApp - INFO - Call added: DC26-0037
+2026-06-07 20:51:21,732 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:51:24,048 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: 'DispatchCallApp' object has no attribute 'on_close'
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 49, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 92, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 129, in _build_main_ui
+    self.create_menu_bar()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 225, in create_menu_bar
+    self.file_menu.add_command(label="Exit", command=self.on_close)
+                                                     ^^^^^^^^^^^^^
+AttributeError: 'DispatchCallApp' object has no attribute 'on_close'
+2026-06-07 20:51:29,335 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:51:31,333 - DispatchApp - CRITICAL - A critical unhandled exception occurred during application run: 'DispatchCallApp' object has no attribute 'on_close'
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 49, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 92, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 129, in _build_main_ui
+    self.create_menu_bar()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 225, in create_menu_bar
+    self.file_menu.add_command(label="Exit", command=self.on_close)
+                                                     ^^^^^^^^^^^^^
+AttributeError: 'DispatchCallApp' object has no attribute 'on_close'
+2026-06-07 20:53:23,074 - DispatchApp - INFO - Application starting up.
+2026-06-07 20:53:28,913 - DispatchApp - CRITICAL - Unhandled exception: 'DispatchCallApp' object has no attribute 'on_close'
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 50, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 92, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 129, in _build_main_ui
+    self.create_menu_bar()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 225, in create_menu_bar
+    self.file_menu.add_command(label="Exit", command=self.on_close)
+                                                     ^^^^^^^^^^^^^
+AttributeError: 'DispatchCallApp' object has no attribute 'on_close'
+2026-06-07 20:56:45,001 - DispatchApp - INFO - Application starting up.
+2026-06-07 21:00:49,036 - DispatchApp - INFO - Application starting up.
+2026-06-07 21:04:54,398 - DispatchApp - INFO - Application starting up.
+2026-06-07 21:24:03,928 - DispatchApp - INFO - Application starting up.
+2026-06-07 21:24:27,843 - DispatchApp - INFO - Call added: DC26-0046
+2026-06-07 21:25:20,422 - DispatchApp - INFO - Application starting up.
