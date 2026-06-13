@@ -1,4 +1,4 @@
-('C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\build\\main\\PYZ-00.pyz',
+('C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\build\\main\\PYZ-00.pyz',
  [('__future__',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0\\Lib\\__future__.py',
@@ -124,7 +124,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0\\Lib\\ctypes\\_endian.py',
    'PYMODULE'),
   ('data_manager',
-   'C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\data_manager.py',
+   'C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\data_manager.py',
    'PYMODULE'),
   ('dataclasses',
    'C:\\Program '
@@ -251,7 +251,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0\\Lib\\glob.py',
    'PYMODULE'),
   ('gui',
-   'C:\\Users\\Admin\\Documents\\GitHub\\Otak25DispatchGUI\\gui.py',
+   'C:\\Users\\nhata\\source\\repos\\Otak25DispatchGUI\\gui.py',
    'PYMODULE'),
   ('gzip',
    'C:\\Program '
@@ -618,7 +618,7 @@
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0\\Lib\\subprocess.py',
    'PYMODULE'),
   ('sv_ttk',
-   'C:\\Users\\Admin\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\sv_ttk\\__init__.py',
+   'C:\\Users\\nhata\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\sv_ttk\\__init__.py',
    'PYMODULE'),
   ('sysconfig',
    'C:\\Program '

@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 
 print("========================================")
-print("🟢 INITIALIZING HQ DISCORD BOT V5.0 (READ ONLY)...")
+print("🟢 INITIALIZING HQ DISCORD BOT V5.3 (THREAD LOGGING)...")
 print("========================================")
 
 try:
@@ -25,8 +25,6 @@ try:
     PORT = 8080
 
     CHANNEL_MAP = {
-        "General": int(config.get('DISCORD', 'general_channel', fallback="0")),
-        "Safety": int(config.get('DISCORD', 'safety_channel', fallback="0")),
         "First Aid": int(config.get('DISCORD', 'first_aid_channel', fallback="0")),
         "Code Adam": int(config.get('DISCORD', 'code_adam_channel', fallback="0"))
     }
@@ -35,11 +33,12 @@ except Exception as e:
     print(f"❌ ERROR LOADING CONFIG.INI: {e}")
     sys.exit(1)
 
-# UPDATED LISTS BASED ON NEW PROTOCOL
 ALLOWED_DISCORD_CODES = ["Adam", "Blue", "Yellow"]
 HIGH_PRIORITY_CODES = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
 
 intents = discord.Intents.default()
+# This intent is required to read messages inside the threads
+intents.message_content = True 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 def get_db_connection():
@@ -65,7 +64,6 @@ def generate_embed(row):
     elif is_resolved: 
         color, title = discord.Color.green(), f"✅ Resolved: {report_id}"
     else:
-        # DYNAMIC EMOJIS BASED ON NEW CODES
         if code == "Blue":
             color, title = discord.Color.blue(), f"🔵 Blue Alert: {report_id}"
         elif code == "Yellow":
@@ -107,8 +105,6 @@ class LocalCommunicationServer(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         data = json.loads(self.rfile.read(content_length).decode('utf-8'))
         
-        print(f"📥 [IPC SIGNAL RECEIVED] Endpoint: {self.path} | Data: {data}")
-        
         if self.path == "/dispatch":
             asyncio.run_coroutine_threadsafe(post_dispatch_message(data.get("report_id"), data.get("source")), bot.loop)
             self.send_response(200)
@@ -139,13 +135,8 @@ async def post_dispatch_message(report_id, source):
         # SMART ROUTING
         if incident_code == "Adam":
             target_channel_id = CHANNEL_MAP.get("Code Adam")
-        elif incident_code in ["Blue", "Yellow"]:
+        else: # Blue or Yellow
             target_channel_id = CHANNEL_MAP.get("First Aid")
-        else:
-            target_channel_id = CHANNEL_MAP.get(source, CHANNEL_MAP["General"])
-
-        if target_channel_id == 0:
-            target_channel_id = CHANNEL_MAP.get("General")
 
         channel = bot.get_channel(target_channel_id) or await bot.fetch_channel(target_channel_id)
 
@@ -157,9 +148,11 @@ async def post_dispatch_message(report_id, source):
         
         print(f"✅ [SUCCESS] {report_id} posted to Discord channel {channel.name}!")
         
-        if incident_code.upper() in [c.upper() for c in HIGH_PRIORITY_CODES]:
-            try: await msg.create_thread(name=f"🚨 HQ Alert: {report_id}", auto_archive_duration=1440)
-            except Exception as thread_err: print(f"⚠️ THREAD ERROR: {thread_err}")
+        # EVERY posted ticket now gets a thread!
+        try: 
+            await msg.create_thread(name=f"💬 Comms: {report_id}", auto_archive_duration=1440)
+        except Exception as thread_err: 
+            print(f"⚠️ THREAD ERROR: {thread_err}")
             
     except Exception as e: print(f"❌ [BOT ERROR] Post failed: {e}")
     finally: conn.close()
@@ -182,6 +175,51 @@ async def edit_dispatch_message(report_id):
         
     except Exception as e: print(f"❌ [BOT ERROR] Discord update failed: {e}")
     finally: conn.close()
+
+# ==========================================
+# DISCORD THREAD LOGGER
+# ==========================================
+@bot.event
+async def on_message(message):
+    # Ignore the bot's own messages
+    if message.author.bot:
+        return
+
+    # Only trigger if the message was sent inside a Thread
+    if isinstance(message.channel, discord.Thread):
+        thread_id = str(message.channel.id)
+        
+        conn = get_db_connection()
+        try:
+            # Check if this thread belongs to one of our dispatch tickets
+            # (Discord thread IDs are identical to the Message ID they were created from)
+            cursor = conn.execute("SELECT ReportID FROM calls WHERE DiscordMessageID = ?", (thread_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                report_id = row['ReportID']
+                
+                # Format the message text
+                content = message.content.strip()
+                if message.attachments:
+                    content += f" [Attached {len(message.attachments)} file(s)]"
+                if not content:
+                    content = "[Empty Message / Sticker]"
+                    
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                user_tag = f"Discord: {message.author.display_name}"
+                
+                # Save the chat message into the TKinter History Database
+                with conn:
+                    conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
+                                 (report_id, now, user_tag, "Thread Message", content))
+                    
+                print(f"📝 [LOGGED] Thread message from {message.author.display_name} saved to {report_id}.")
+                
+        except Exception as e:
+            print(f"❌ [DB ERROR] Failed to log thread message: {e}")
+        finally:
+            conn.close()
 
 @bot.event
 async def on_ready():

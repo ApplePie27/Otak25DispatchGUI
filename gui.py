@@ -71,10 +71,9 @@ class DispatchCallApp:
         self.last_update_count = -1
         self.last_redraw_time = datetime.now()
         
-        # UPDATED HQ HIGH PRIORITY LIST
         self.high_priority_codes = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
         
-        self.root.title("HQ Dispatch Center V5.0")
+        self.root.title("HQ Dispatch Center V5.1")
         self.root.resizable(True, True)
         
         if HAS_SV_TTK:
@@ -137,8 +136,6 @@ class DispatchCallApp:
         self.table.tag_configure("nocode", background="#222222" if is_dark else "#f0f0f0", foreground="white" if is_dark else "black")
         self.table.tag_configure("resolved", background="#1e4d2b" if is_dark else "#d0f0c0", foreground="white" if is_dark else "black")
         self.table.tag_configure("cancelled", background="#4d4d4d" if is_dark else "#cccccc", foreground="#999999" if is_dark else "#666666")
-        
-        # PASTEL BLUE FOR HIGH PRIORITY (Light Mode)
         self.table.tag_configure("high_priority", background="#3a5f80" if is_dark else "#cce5ff", foreground="white" if is_dark else "black")
         self.table.tag_configure("sla_critical", background="#8B0000", foreground="white") 
 
@@ -627,15 +624,17 @@ class DispatchCallApp:
             report_id = call.get('ReportID')
             current_calls.add(report_id)
             
-            if not self.is_first_load and report_id not in self.known_calls:
+            is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
+            is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
+            
+            # AUDIO ALARM FIX: Do not play sirens for old, resolved, or cancelled tickets!
+            if not self.is_first_load and report_id not in self.known_calls and not is_canc and not is_res:
                 db_code = call.get('Code', "")
                 if db_code in self.high_priority_codes: new_high_priority = True
                 else: new_standard_call = True
 
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
-            is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
-            is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
             is_hp = call.get('Code', "") in self.high_priority_codes
             
             try:
