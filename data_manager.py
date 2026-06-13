@@ -50,6 +50,10 @@ class DataManager:
             try: self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordChannelID TEXT;")
             except sqlite3.OperationalError: pass 
 
+            # NEW: Add Cancelled column
+            try: self.conn.execute("ALTER TABLE calls ADD COLUMN Cancelled BOOLEAN;")
+            except sqlite3.OperationalError: pass
+
     def check_if_updated(self):
         try:
             self.conn.commit() 
@@ -67,7 +71,7 @@ class DataManager:
         )
 
     def get_all_calls(self, sort_by="ReportID", sort_order="ASC"):
-        valid_columns = ["ReportID", "CallDate", "Location", "Code", "AnsweredStatus", "ResolutionStatus"]
+        valid_columns = ["ReportID", "CallDate", "Location", "Code", "ResolutionStatus", "Cancelled"]
         if sort_by not in valid_columns: sort_by = "ReportID"
         sort_order = "DESC" if sort_order.upper() == "DESC" else "ASC"
         
@@ -105,12 +109,12 @@ class DataManager:
                     CallDate, CallTime, AnsweredTimestamp, AnsweredStatus, AnsweredBy,
                     ResolutionTimestamp, ResolutionStatus, ResolvedBy, InputMedium, Source, 
                     Caller, Location, Code, Description, CreatedBy, ModifiedBy, RedFlag,
-                    ReportNumber, Deleted
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ReportNumber, Deleted, Cancelled
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 now.strftime("%Y-%m-%d"), now.strftime("%H:%M"), "", False, "", "", False, "",
                 call['InputMedium'], call['Source'], call['Caller'], call['Location'],
-                call['Code'], call['Description'], current_user, "", False, "", False
+                call['Code'], call['Description'], current_user, "", False, "", False, call.get('Cancelled', False)
             ))
             new_id = cursor.lastrowid
             report_id = f"{self.call_id_prefix}-{new_id:04d}"
@@ -126,8 +130,8 @@ class DataManager:
         modification_details = []
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         
-        for field in ['InputMedium', 'Source', 'Caller', 'Location', 'Code']:
-            if str(original_call[field]) != str(updated_call[field]):
+        for field in ['InputMedium', 'Source', 'Caller', 'Location', 'Code', 'Cancelled']:
+            if str(original_call.get(field, '')) != str(updated_call.get(field, '')):
                 modification_details.append(f"{field} updated.")
         
         if original_call['Description'].strip() != updated_call['Description'].strip():
@@ -141,14 +145,6 @@ class DataManager:
             if not updated_call["ResolutionStatus"] and original_call["ResolutionStatus"]:
                 updated_call["ResolvedBy"], updated_call["ResolutionTimestamp"] = "", ""
 
-        is_newly_answered = updated_call["AnsweredStatus"] and not original_call["AnsweredStatus"]
-        if is_newly_answered:
-            updated_call["AnsweredTimestamp"] = now
-            self._log_history(report_id, current_user, "Call Answered", f"Answered by: {updated_call['AnsweredBy']}")
-        else:
-            if not updated_call["AnsweredStatus"] and original_call["AnsweredStatus"]:
-                updated_call["AnsweredBy"], updated_call["AnsweredTimestamp"] = "", ""
-
         if modification_details:
             self._log_history(report_id, current_user, "Call Modified", "; ".join(modification_details))
         
@@ -157,15 +153,12 @@ class DataManager:
         with self.conn:
             self.conn.execute("""
                 UPDATE calls SET
-                InputMedium=?, Source=?, Caller=?, Location=?, Code=?, Description=?,
-                AnsweredStatus=?, AnsweredBy=?, AnsweredTimestamp=?,
+                InputMedium=?, Source=?, Caller=?, Location=?, Code=?, Description=?, Cancelled=?,
                 ResolutionStatus=?, ResolvedBy=?, ResolutionTimestamp=?, ModifiedBy=?
                 WHERE ReportID=?
             """, (
                 updated_call['InputMedium'], updated_call['Source'], updated_call['Caller'],
-                updated_call['Location'], updated_call['Code'], updated_call['Description'], 
-                updated_call['AnsweredStatus'], updated_call['AnsweredBy'], 
-                updated_call.get('AnsweredTimestamp', original_call['AnsweredTimestamp']),
+                updated_call['Location'], updated_call['Code'], updated_call['Description'], updated_call.get('Cancelled', False),
                 updated_call['ResolutionStatus'], updated_call['ResolvedBy'], 
                 updated_call.get('ResolutionTimestamp', original_call['ResolutionTimestamp']),
                 updated_call['ModifiedBy'], report_id

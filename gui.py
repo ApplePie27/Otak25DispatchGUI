@@ -71,13 +71,18 @@ class DispatchCallApp:
         self.last_update_count = -1
         self.last_redraw_time = datetime.now()
         
-        self.root.title("HQ Dispatch Center V3.0")
+        # UPDATED HQ HIGH PRIORITY LIST
+        self.high_priority_codes = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
+        
+        self.root.title("HQ Dispatch Center V5.0")
         self.root.resizable(True, True)
         
         if HAS_SV_TTK:
-            sv_ttk.set_theme("dark")
+            sv_ttk.set_theme("light")
             
         self.config = configparser.ConfigParser()
+        self.config.optionxform = str 
+        
         self.load_config()
         self.current_user = None
         self.current_user_role = None
@@ -89,12 +94,11 @@ class DispatchCallApp:
             return
             
         self._build_main_ui()
-        self.apply_theme_colors() # Apply dynamic colors instantly on boot
+        self.apply_theme_colors() 
         self.root.deiconify()
 
     def _play_siren(self):
         if AUDIO_ENABLED:
-            # Rapid-fire Submarine Dive Klaxon for Maximum Alertness
             for _ in range(8):
                 winsound.Beep(1500, 150) 
                 winsound.Beep(1000, 150)
@@ -115,22 +119,27 @@ class DispatchCallApp:
             self.apply_theme_colors()
 
     def apply_theme_colors(self):
-        if not HAS_SV_TTK: return
-        is_dark = sv_ttk.get_theme() == "dark"
+        is_dark = False
+        if HAS_SV_TTK:
+            is_dark = sv_ttk.get_theme() == "dark"
         
-        # Adjust Description Text Box
         bg_color = "#1e1e1e" if is_dark else "#ffffff"
         fg_color = "white" if is_dark else "black"
         self.description_entry.configure(bg=bg_color, fg=fg_color, insertbackground=fg_color)
         
-        # Adjust Table Tag Colors dynamically
-        self.table.tag_configure("hascode", background="#333333" if is_dark else "#ffffff", foreground="white" if is_dark else "black")
-        self.table.tag_configure("nocode", background="#222222" if is_dark else "#d3d3d3", foreground="white" if is_dark else "black")
-        self.table.tag_configure("answered", background="#2f4f4f" if is_dark else "#FFFFE0", foreground="white" if is_dark else "black")
-        self.table.tag_configure("resolved", background="#1e4d2b" if is_dark else "#d0f0c0", foreground="white" if is_dark else "black")
+        style = ttk.Style()
+        style.map("Treeview",
+            background=[('selected', '#0078D7')],
+            foreground=[('selected', 'white')]
+        )
         
-        # SLA tags stay bright warning colors regardless of theme
-        self.table.tag_configure("sla_warning", background="#B8860B", foreground="white") 
+        self.table.tag_configure("hascode", background="#222222" if is_dark else "#e8e8e8", foreground="white" if is_dark else "black")
+        self.table.tag_configure("nocode", background="#222222" if is_dark else "#f0f0f0", foreground="white" if is_dark else "black")
+        self.table.tag_configure("resolved", background="#1e4d2b" if is_dark else "#d0f0c0", foreground="white" if is_dark else "black")
+        self.table.tag_configure("cancelled", background="#4d4d4d" if is_dark else "#cccccc", foreground="#999999" if is_dark else "#666666")
+        
+        # PASTEL BLUE FOR HIGH PRIORITY (Light Mode)
+        self.table.tag_configure("high_priority", background="#3a5f80" if is_dark else "#cce5ff", foreground="white" if is_dark else "black")
         self.table.tag_configure("sla_critical", background="#8B0000", foreground="white") 
 
     def _build_main_ui(self):
@@ -141,8 +150,7 @@ class DispatchCallApp:
         self.caller_var = tk.StringVar()
         self.location_var = tk.StringVar()
         self.code_var = tk.StringVar()
-        self.answered_status_var = tk.BooleanVar(value=False)
-        self.answered_by_var = tk.StringVar()
+        self.cancelled_status_var = tk.BooleanVar(value=False)
         self.resolution_status_var = tk.BooleanVar(value=False)
         self.resolved_by_var = tk.StringVar()
         self.code_description_var = tk.StringVar()
@@ -178,7 +186,7 @@ class DispatchCallApp:
             for desc, value in self.config.items('CODES'):
                 self.desc_to_code_map[desc.strip()] = value.split('|')[0].strip()
         else:
-            self.desc_to_code_map = {"General situations": "No_Code"}
+            self.desc_to_code_map = {"General Situations": "No_Code"}
 
         self.source_options = {}
         if self.config.has_section('SOURCES'):
@@ -227,7 +235,7 @@ class DispatchCallApp:
         self.caller_var.trace_add("write", self._set_dirty_flag)
         self.location_var.trace_add("write", self._set_dirty_flag)
         self.code_var.trace_add("write", self._set_dirty_flag)
-        self.answered_status_var.trace_add("write", self._set_dirty_flag)
+        self.cancelled_status_var.trace_add("write", self._set_dirty_flag)
         self.resolved_by_var.trace_add("write", self._set_dirty_flag)
         self.resolution_status_var.trace_add("write", self._set_dirty_flag)
         self.description_entry.bind("<KeyRelease>", self._set_dirty_flag)
@@ -246,7 +254,6 @@ class DispatchCallApp:
         menubar = tk.Menu(self.root)
         self.file_menu = tk.Menu(menubar, tearoff=0)
         
-        # New Theme Toggle Button
         if HAS_SV_TTK:
             self.file_menu.add_command(label="Toggle Light/Dark Mode 🌓", command=self.toggle_theme)
             self.file_menu.add_separator()
@@ -286,32 +293,30 @@ class DispatchCallApp:
         code_cb.grid(row=3, column=1, padx=5, pady=2, sticky="w")
         code_cb.bind("<<ComboboxSelected>>", self.update_code_description)
         
-        if "general situations" in [d.lower() for d in all_descriptions]:
-            self.code_var.set(next(d for d in all_descriptions if d.lower() == "general situations"))
-        elif all_descriptions:
-            self.code_var.set(all_descriptions[0])
+        if all_descriptions: self.code_var.set(all_descriptions[0])
 
         ttk.Label(fields_frame, text="Assigned Code:").grid(row=3, column=2, padx=5, pady=2, sticky="w")
         ttk.Label(fields_frame, textvariable=self.code_description_var, font=("TkDefaultFont", 9, "bold")).grid(row=3, column=3, columnspan=2, padx=5, pady=2, sticky="w")
         
         ttk.Label(fields_frame, text="Description:").grid(row=4, column=0, padx=5, pady=2, sticky="nw")
         
-        self.description_entry = scrolledtext.ScrolledText(fields_frame, height=5, width=60, borderwidth=1, relief="solid")
-        self.description_entry.grid(row=4, column=1, columnspan=4, padx=5, pady=2, sticky="w")
+        desc_frame = ttk.Frame(fields_frame)
+        desc_frame.grid(row=4, column=1, columnspan=3, padx=5, pady=2, sticky="w")
         
-        ttk.Checkbutton(fields_frame, text="Answered", variable=self.answered_status_var, command=self.toggle_answered_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        answered_frame = ttk.Frame(fields_frame)
-        answered_frame.grid(row=5, column=1, columnspan=3, padx=5, pady=5, sticky="w")
-        ttk.Label(answered_frame, text="Answered By:").pack(side="left", padx=(0, 5))
-        self.answered_by_entry = ttk.Entry(answered_frame, textvariable=self.answered_by_var, state="disabled", width=uniform_width)
-        self.answered_by_entry.pack(side="left")
-
-        ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolved_entry).grid(row=6, column=0, padx=5, pady=5, sticky="w")
+        if HAS_SV_TTK:
+            self.description_entry = scrolledtext.ScrolledText(desc_frame, height=5, width=60, borderwidth=1, relief="solid", bg="#1e1e1e", fg="white", insertbackground="white")
+        else:
+            self.description_entry = scrolledtext.ScrolledText(desc_frame, height=5, width=60, borderwidth=1, relief="solid")
+        self.description_entry.pack(side="left")
+        
+        ttk.Checkbutton(fields_frame, text="Resolved", variable=self.resolution_status_var, command=self.toggle_resolved_entry).grid(row=5, column=0, padx=5, pady=5, sticky="w")
         resolved_frame = ttk.Frame(fields_frame)
-        resolved_frame.grid(row=6, column=1, columnspan=3, padx=5, pady=5, sticky="w")
+        resolved_frame.grid(row=5, column=1, columnspan=3, padx=5, pady=5, sticky="w")
         ttk.Label(resolved_frame, text="Resolved By:  ").pack(side="left", padx=(0, 4))
         self.resolved_by_entry = ttk.Entry(resolved_frame, textvariable=self.resolved_by_var, state="disabled", width=uniform_width)
         self.resolved_by_entry.pack(side="left")
+        
+        ttk.Checkbutton(fields_frame, text="Cancelled / Void", variable=self.cancelled_status_var).grid(row=6, column=0, padx=5, pady=5, sticky="w")
 
         self.update_code_description()
 
@@ -347,11 +352,11 @@ class DispatchCallApp:
     def create_table(self):
         self.columns = {
             "ReportID": ("Call ID", 80), "CallDate": ("Date", 80), "CallTime": ("Time", 60), "TimeOpen": ("Time Open", 80),
-            "AnsweredStatus": ("Answered?", 70), "AnsweredTimestamp": ("Answered At", 120), "AnsweredBy": ("Answered By", 100),
             "ResolutionStatus": ("Resolved?", 70), "ResolutionTimestamp": ("Resolved At", 120), "ResolvedBy": ("Resolved By", 100),
+            "Cancelled": ("Cancelled?", 70),
             "InputMedium": ("Medium", 100), "Source": ("Source", 100), "Caller": ("Caller", 100),
             "Location": ("Location", 120), "Code": ("Code", 150), "Description": ("Description", 300),
-            "ModifiedBy": ("Modified By", 100), "CreatedBy": ("Created By", 100)
+            "CreatedBy": ("Created By", 100)
         }
         
         table_frame = ttk.Frame(self.root)
@@ -397,11 +402,6 @@ class DispatchCallApp:
         self.root.grid_rowconfigure(2, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-    def toggle_answered_entry(self):
-        state = "normal" if self.answered_status_var.get() else "disabled"
-        self.answered_by_entry.configure(state=state)
-        if state == "disabled": self.answered_by_var.set("")
-
     def toggle_resolved_entry(self):
         state = "normal" if self.resolution_status_var.get() else "disabled"
         self.resolved_by_entry.configure(state=state)
@@ -419,7 +419,6 @@ class DispatchCallApp:
         if not self.caller_var.get().strip(): return False
         if not self.location_var.get().strip(): return False
         if not self.description_entry.get("1.0", tk.END).strip(): return False
-        if self.answered_status_var.get() and not self.answered_by_var.get().strip(): return False
         if self.resolution_status_var.get() and not self.resolved_by_var.get().strip(): return False
         return True
 
@@ -451,8 +450,8 @@ class DispatchCallApp:
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
             "Code": self.desc_to_code_map.get(self.code_var.get(), ""), "Description": self.description_entry.get("1.0", tk.END).strip(),
-            "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
-            "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
+            "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip(),
+            "Cancelled": self.cancelled_status_var.get()
         }
         self._run_in_thread(self.manager.add_call, self._on_add_call_complete, call_data, self.current_user)
 
@@ -483,8 +482,8 @@ class DispatchCallApp:
             "InputMedium": self.input_medium_var.get(), "Source": self.source_var.get(),
             "Caller": self.caller_var.get().strip(), "Location": self.location_var.get().strip(),
             "Code": self.desc_to_code_map.get(self.code_var.get(), ""), "Description": self.description_entry.get("1.0", tk.END).strip(),
-            "AnsweredStatus": self.answered_status_var.get(), "AnsweredBy": self.answered_by_var.get().strip(),
-            "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip()
+            "ResolutionStatus": self.resolution_status_var.get(), "ResolvedBy": self.resolved_by_var.get().strip(),
+            "Cancelled": self.cancelled_status_var.get()
         }
         
         callback = lambda success, res: self._on_modify_call_complete(success, res, report_id)
@@ -532,14 +531,11 @@ class DispatchCallApp:
             self.description_entry.delete("1.0", tk.END)
             self.description_entry.insert(tk.END, self._sanitize_for_tkinter(call.get("Description", "")))
 
-            self.answered_status_var.set(str(call.get("AnsweredStatus", "False")).lower() in ('true', '1'))
-            self.toggle_answered_entry()
-            self.answered_by_var.set(self._sanitize_for_tkinter(call.get("AnsweredBy", "")))
-
+            self.cancelled_status_var.set(str(call.get("Cancelled", "False")).lower() in ('true', '1'))
             self.resolution_status_var.set(str(call.get("ResolutionStatus", "False")).lower() in ('true', '1'))
             self.toggle_resolved_entry()
             self.resolved_by_var.set(self._sanitize_for_tkinter(call.get("ResolvedBy", "")))
-            
+
         finally: 
             self.is_loading_data = False
             self.is_dirty = False
@@ -552,9 +548,7 @@ class DispatchCallApp:
             self.caller_var.set("")
             self.location_var.set("")
             self.description_entry.delete("1.0", tk.END)
-            self.answered_status_var.set(False)
-            self.answered_by_var.set("")
-            self.toggle_answered_entry()
+            self.cancelled_status_var.set(False)
             self.resolution_status_var.set(False)
             self.resolved_by_var.set("")
             self.toggle_resolved_entry()
@@ -635,13 +629,14 @@ class DispatchCallApp:
             
             if not self.is_first_load and report_id not in self.known_calls:
                 db_code = call.get('Code', "")
-                if db_code in ["Red", "Blue", "Orange", "Silver", "Signal_13", "Adam", "Black"]: new_high_priority = True
+                if db_code in self.high_priority_codes: new_high_priority = True
                 else: new_standard_call = True
 
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
-            is_ans = str(call.get('AnsweredStatus', "False")).lower() in ('1', 'true')
             is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
+            is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
+            is_hp = call.get('Code', "") in self.high_priority_codes
             
             try:
                 call_dt = datetime.strptime(f"{call['CallDate']} {call['CallTime']}", "%Y-%m-%d %H:%M")
@@ -650,22 +645,26 @@ class DispatchCallApp:
                 minutes_open = 0
             
             tags = []
-            if is_res:
+            if is_canc:
+                tags.append("cancelled")
+                call["TimeOpen"] = "Cancelled"
+            elif is_res:
                 tags.append("resolved")
                 call["TimeOpen"] = "Closed"
             else:
                 call["TimeOpen"] = f"{int(minutes_open)} min"
                 
-                if not is_ans and minutes_open >= 5: tags.append("sla_warning")
-                elif is_ans and minutes_open >= 30: tags.append("sla_critical")
-                elif is_ans: tags.append("answered")
+                if minutes_open >= 30: 
+                    tags.append("sla_critical")
+                elif is_hp: 
+                    tags.append("high_priority")
                 else:
                     db_code = call.get('Code', "")
                     tags.append("nocode" if not db_code or db_code.lower() == "no_code" else "hascode")
             
             values = []
             for key in display_keys:
-                if key in ("AnsweredStatus", "ResolutionStatus"):
+                if key in ("ResolutionStatus", "Cancelled"):
                     values.append("True" if str(call.get(key)).lower() in ('1', 'true') else "False")
                 elif key == "TimeOpen":
                     values.append(call.get(key))
