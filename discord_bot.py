@@ -1,4 +1,11 @@
-﻿import discord
+﻿"""
+DISCORD_BOT.PY
+Strict Read-Only Notification Bot.
+Watches for IPC HTTP Pings from the Tkinter GUI, then routes the incident 
+to the correct Discord channel based on priority code. Also logs Discord Thread 
+communications directly back into the SQLite database.
+"""
+import discord
 from discord.ext import commands
 import sqlite3
 import configparser
@@ -12,9 +19,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 
 print("========================================")
-print("🟢 INITIALIZING HQ DISCORD BOT V5.3 (THREAD LOGGING)...")
+print("🟢 INITIALIZING HQ DISCORD BOT V5.3 (SMART ROUTING & LOGGING)...")
 print("========================================")
 
+# --- 1. CONFIGURATION LOAD ---
 try:
     config = configparser.ConfigParser()
     config.optionxform = str
@@ -22,7 +30,7 @@ try:
 
     DISCORD_TOKEN = config.get('DISCORD', 'bot_token', fallback="").strip()
     DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
-    PORT = 8080
+    PORT = 8080 # IPC port used to talk to the Tkinter GUI
 
     CHANNEL_MAP = {
         "First Aid": int(config.get('DISCORD', 'first_aid_channel', fallback="0")),
@@ -33,11 +41,13 @@ except Exception as e:
     print(f"❌ ERROR LOADING CONFIG.INI: {e}")
     sys.exit(1)
 
+# Defines which codes are permitted to be pushed to Discord at all
 ALLOWED_DISCORD_CODES = ["Adam", "Blue", "Yellow"]
+# Defines which codes trigger an automatic Discord Thread creation
 HIGH_PRIORITY_CODES = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
 
+# Need message_content intent so the bot can read replies inside Discord Threads
 intents = discord.Intents.default()
-# This intent is required to read messages inside the threads
 intents.message_content = True 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -53,17 +63,20 @@ def get_db_connection():
     return conn
 
 def generate_embed(row):
-    row = dict(row)
+    """Generates the visual Dispatch Card for Discord channels."""
+    row = dict(row) # Safely convert SQLite row to Python dict
     report_id = row['ReportID']
     is_resolved = str(row.get('ResolutionStatus', 'False')).lower() in ('1', 'true')
     is_cancelled = str(row.get('Cancelled', 'False')).lower() in ('1', 'true')
     code = str(row.get('Code', ''))
     
+    # Visual State Logic
     if is_cancelled: 
         color, title = discord.Color.light_grey(), f"🚫 Cancelled/Void: {report_id}"
     elif is_resolved: 
         color, title = discord.Color.green(), f"✅ Resolved: {report_id}"
     else:
+        # Dynamic Emojis/Colors based on Incident Code
         if code == "Blue":
             color, title = discord.Color.blue(), f"🔵 Blue Alert: {report_id}"
         elif code == "Yellow":
@@ -81,6 +94,7 @@ def generate_embed(row):
         else:
             color, title = discord.Color.orange(), f"🚨 HQ Alert: {report_id}"
 
+    # Protect against API crashes by capping string length
     safe_desc = str(row.get('Description', ''))
     if len(safe_desc) > 4000: safe_desc = safe_desc[:3997] + "..."
 
@@ -97,13 +111,20 @@ def generate_embed(row):
 
 
 # ==========================================
-# HQ TO DISCORD BACKGROUND SIGNALING
+# 2. LOCAL IPC SERVER (GUI to BOT Bridge)
 # ==========================================
 class LocalCommunicationServer(BaseHTTPRequestHandler):
-    def log_message(self, format, *args): pass
+    """
+    Listens on localhost:8080. When the Tkinter GUI saves a ticket, it sends an 
+    HTTP POST here. This wakes up the Discord bot to post/edit the message.
+    """
+    def log_message(self, format, *args): pass # Supress noisy console logs
+    
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         data = json.loads(self.rfile.read(content_length).decode('utf-8'))
+        
+        print(f"📥 [IPC SIGNAL RECEIVED] Endpoint: {self.path} | Data: {data}")
         
         if self.path == "/dispatch":
             asyncio.run_coroutine_threadsafe(post_dispatch_message(data.get("report_id"), data.get("source")), bot.loop)
@@ -118,7 +139,7 @@ class LocalCommunicationServer(BaseHTTPRequestHandler):
             self.end_headers()
 
 async def post_dispatch_message(report_id, source):
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.5) # Wait for network drive SMB cache to settle
     conn = get_db_connection()
     try:
         conn.commit()
@@ -127,12 +148,12 @@ async def post_dispatch_message(report_id, source):
         
         incident_code = str(row['Code'])
         
-        # FILTER: Only post if the code is Adam or First Aid (Blue/Yellow)
+        # FILTER: Prevent low-priority spam on Discord
         if incident_code not in ALLOWED_DISCORD_CODES: 
             print(f"⏩ [SKIPPED] {report_id} has code {incident_code} (Not configured for Discord broadcast).")
             return
 
-        # SMART ROUTING
+        # SMART ROUTING: Overrides user-selected source based on severe codes
         if incident_code == "Adam":
             target_channel_id = CHANNEL_MAP.get("Code Adam")
         else: # Blue or Yellow
@@ -141,14 +162,14 @@ async def post_dispatch_message(report_id, source):
         channel = bot.get_channel(target_channel_id) or await bot.fetch_channel(target_channel_id)
 
         embed = generate_embed(row)
-            
         msg = await channel.send(embed=embed)
+        
+        # Save the Discord Message ID so we can edit it later
         conn.execute("UPDATE calls SET DiscordMessageID=?, DiscordChannelID=? WHERE ReportID=?", (str(msg.id), str(channel.id), report_id))
         conn.commit()
-        
         print(f"✅ [SUCCESS] {report_id} posted to Discord channel {channel.name}!")
         
-        # EVERY posted ticket now gets a thread!
+        # Create a thread for communications
         try: 
             await msg.create_thread(name=f"💬 Comms: {report_id}", auto_archive_duration=1440)
         except Exception as thread_err: 
@@ -176,53 +197,47 @@ async def edit_dispatch_message(report_id):
     except Exception as e: print(f"❌ [BOT ERROR] Discord update failed: {e}")
     finally: conn.close()
 
+
 # ==========================================
-# DISCORD THREAD LOGGER
+# 3. DISCORD THREAD LOGGER (LIABILITY AUDITING)
 # ==========================================
 @bot.event
 async def on_message(message):
-    # Ignore the bot's own messages
-    if message.author.bot:
-        return
+    """Silently intercepts field chat and logs it to HQ Database for post-con review."""
+    if message.author.bot: return
 
-    # Only trigger if the message was sent inside a Thread
+    # Only log messages that occur inside incident threads
     if isinstance(message.channel, discord.Thread):
         thread_id = str(message.channel.id)
         
         conn = get_db_connection()
         try:
-            # Check if this thread belongs to one of our dispatch tickets
-            # (Discord thread IDs are identical to the Message ID they were created from)
+            # Check if this thread belongs to one of our Tkinter tickets
             cursor = conn.execute("SELECT ReportID FROM calls WHERE DiscordMessageID = ?", (thread_id,))
             row = cursor.fetchone()
             
             if row:
                 report_id = row['ReportID']
                 
-                # Format the message text
                 content = message.content.strip()
-                if message.attachments:
-                    content += f" [Attached {len(message.attachments)} file(s)]"
-                if not content:
-                    content = "[Empty Message / Sticker]"
+                if message.attachments: content += f" [Attached {len(message.attachments)} file(s)]"
+                if not content: content = "[Empty Message / Sticker]"
                     
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 user_tag = f"Discord: {message.author.display_name}"
                 
-                # Save the chat message into the TKinter History Database
                 with conn:
                     conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
                                  (report_id, now, user_tag, "Thread Message", content))
                     
                 print(f"📝 [LOGGED] Thread message from {message.author.display_name} saved to {report_id}.")
                 
-        except Exception as e:
-            print(f"❌ [DB ERROR] Failed to log thread message: {e}")
-        finally:
-            conn.close()
+        except Exception as e: print(f"❌ [DB ERROR] Failed to log thread message: {e}")
+        finally: conn.close()
 
 @bot.event
 async def on_ready():
+    # Purge old slash commands from Discord's memory, as the bot is now strictly Read-Only
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     print(f"✅ Read-Only Logger successfully logged into Discord as {bot.user}")
@@ -231,6 +246,9 @@ async def on_ready():
 if __name__ == "__main__":
     try:
         if not DISCORD_TOKEN: sys.exit("❌ FATAL: DISCORD_TOKEN is empty.")
+        
+        # Start the IPC listener on a background thread so it doesn't block the Discord async loop
         threading.Thread(target=lambda: HTTPServer(('localhost', PORT), LocalCommunicationServer).serve_forever(), daemon=True).start()
         bot.run(DISCORD_TOKEN)
+        
     except Exception as e: traceback.print_exc()

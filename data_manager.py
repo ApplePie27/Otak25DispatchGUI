@@ -1,3 +1,9 @@
+"""
+DATA_MANAGER.PY
+Handles all SQLite database interactions.
+Optimized heavily with SQLite PRAGMAs to survive multi-computer concurrency 
+over a spotty Windows SMB File Share.
+"""
 import sqlite3
 from datetime import datetime
 import os
@@ -5,12 +11,15 @@ import os
 class DataManager:
     def __init__(self, db_filename):
         self.db_filename = db_filename
+        # timeout=20.0 prevents "Database Locked" errors by forcing laptops to wait 
+        # up to 20 seconds in line to write to the database over the network.
         self.conn = sqlite3.connect(db_filename, check_same_thread=False, timeout=20.0)
         self.conn.row_factory = sqlite3.Row
-        self.call_id_prefix = f"DC{datetime.now().strftime('%y')}"
+        self.call_id_prefix = f"DC{datetime.now().strftime('%y')}" # Generates DC24, DC25, etc.
         
+        # SQLite Network Optimization PRAGMAs
         with self.conn:
-            self.conn.execute("PRAGMA journal_mode=TRUNCATE;")
+            self.conn.execute("PRAGMA journal_mode=TRUNCATE;") # Best for network drives
             self.conn.execute("PRAGMA synchronous=NORMAL;")
             self.conn.execute("PRAGMA busy_timeout=20000;")
             self.conn.execute("PRAGMA temp_store=MEMORY;")
@@ -19,6 +28,7 @@ class DataManager:
         self._create_tables()
 
     def _create_tables(self):
+        """Builds the database schema on first boot."""
         with self.conn:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS calls (
@@ -44,19 +54,23 @@ class DataManager:
                 )
             """)
             
+            # Legacy column upgrades. Wrapped in Try/Except so they don't crash if they already exist.
             try: self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordMessageID TEXT;")
             except sqlite3.OperationalError: pass 
 
             try: self.conn.execute("ALTER TABLE calls ADD COLUMN DiscordChannelID TEXT;")
             except sqlite3.OperationalError: pass 
 
-            # NEW: Add Cancelled column
             try: self.conn.execute("ALTER TABLE calls ADD COLUMN Cancelled BOOLEAN;")
             except sqlite3.OperationalError: pass
 
     def check_if_updated(self):
+        """
+        Polled every 10 seconds by the Tkinter UI to check if another computer changed the DB.
+        Uses MAX(HistoryID) because it is immune to row deletions and race conditions.
+        """
         try:
-            self.conn.commit() 
+            self.conn.commit() # Forces SQLite to clear cache and check the actual file
             cursor = self.conn.execute("SELECT MAX(HistoryID) FROM call_history")
             result = cursor.fetchone()[0]
             return result if result else 0
@@ -64,6 +78,7 @@ class DataManager:
             return -1
 
     def _log_history(self, call_id, user, action, details=""):
+        """Internal helper to write to the uneditable liability audit log."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.conn.execute(
             "INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
@@ -88,6 +103,7 @@ class DataManager:
         return cursor.fetchall()
 
     def get_full_audit_log(self):
+        """For Admin CSV Export only."""
         cursor = self.conn.execute("SELECT * FROM call_history ORDER BY HistoryID ASC")
         return cursor.fetchall()
 
@@ -101,6 +117,7 @@ class DataManager:
             self.conn.execute("INSERT INTO passdown_notes (Timestamp, User, Note) VALUES (?, ?, ?)", (timestamp, user, note))
 
     def add_call(self, call, current_user):
+        """Creates a new incident and assigns a formatted DC-#### ID."""
         now = datetime.now()
         with self.conn: 
             cursor = self.conn.cursor()
@@ -123,6 +140,7 @@ class DataManager:
         return report_id
 
     def modify_call(self, report_id, updated_call, current_user):
+        """Updates a call and automatically logs exactly which fields the dispatcher changed."""
         original_call_row = self.get_call_by_id(report_id)
         if not original_call_row: raise ValueError("Call not found.")
         
@@ -130,6 +148,7 @@ class DataManager:
         modification_details = []
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         
+        # Track what changed for the audit log
         for field in ['InputMedium', 'Source', 'Caller', 'Location', 'Code', 'Cancelled']:
             if str(original_call.get(field, '')) != str(updated_call.get(field, '')):
                 modification_details.append(f"{field} updated.")
@@ -166,6 +185,7 @@ class DataManager:
         return True
 
     def create_backup(self, backup_dir, max_backups):
+        """Simple localized SQLite copy function."""
         if not os.path.exists(backup_dir): os.makedirs(backup_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = os.path.join(backup_dir, f"backup_{timestamp}.db")

@@ -724,3 +724,4 @@ AttributeError: 'DispatchCallApp' object has no attribute 'on_close'
 2026-06-13 17:01:13,891 - DispatchApp - INFO - Call added: DC26-0063
 2026-06-13 17:04:08,884 - DispatchApp - INFO - Call added: DC26-0064
 2026-06-13 17:08:23,225 - DispatchApp - INFO - Call added: DC26-0065
+2026-06-13 17:34:26,278 - DispatchApp - INFO - Application starting up.

@@ -1,4 +1,10 @@
-﻿import tkinter as tk
+﻿"""
+GUI.PY
+The Tkinter desktop interface for HQ Dispatchers.
+Implements non-blocking ThreadPoolExecutors, SLA Timer evaluations, 
+and HTTP IPC requests to notify the Discord Bot of changes.
+"""
+import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog, scrolledtext
 from data_manager import DataManager
 from datetime import datetime
@@ -11,12 +17,14 @@ import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
+# Audio Support for High-Priority Alarms
 try:
     import winsound
     AUDIO_ENABLED = True
 except ImportError:
     AUDIO_ENABLED = False
 
+# Modern UI Theme
 try:
     import sv_ttk
     HAS_SV_TTK = True
@@ -24,6 +32,7 @@ except ImportError:
     HAS_SV_TTK = False
 
 class ToolTip:
+    """Helper class to display floating text when hovering over buttons."""
     def __init__(self, widget, text):
         self.widget = widget
         self.text = text
@@ -33,14 +42,12 @@ class ToolTip:
 
     def show_tooltip(self, event):
         if self.tooltip: return
-        x = event.x_root + 20
-        y = event.y_root + 10
+        x, y = event.x_root + 20, event.y_root + 10
         self.tooltip = tk.Toplevel(self.widget)
         self.tooltip.wm_overrideredirect(True)
         self.tooltip.wm_geometry(f"+{int(x)}+{int(y)}")
         label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", foreground="black", relief="solid", 
-                         borderwidth=1, font=("tahoma", "8", "normal"),
-                         wraplength=300, justify='left')
+                         borderwidth=1, font=("tahoma", "8", "normal"), wraplength=300, justify='left')
         label.pack(ipadx=2, ipady=2)
 
     def hide_tooltip(self, event):
@@ -48,6 +55,7 @@ class ToolTip:
         self.tooltip = None
 
 class ScrolledTextHandler(logging.Handler):
+    """Routes standard Python logging directly into the Tkinter UI window."""
     def __init__(self, text_widget):
         super().__init__()
         self.text_widget = text_widget
@@ -64,6 +72,7 @@ class DispatchCallApp:
         self.logger = logger
         self.manager = data_manager
         
+        # Using a single-worker executor prevents the UI from freezing during network writes
         self.executor = ThreadPoolExecutor(max_workers=1)
         
         self.known_calls = set()
@@ -71,18 +80,19 @@ class DispatchCallApp:
         self.last_update_count = -1
         self.last_redraw_time = datetime.now()
         
+        # Triggers Audio Sirens and SLA Overrides
         self.high_priority_codes = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
         
-        self.root.title("HQ Dispatch Center V5.1")
+        self.root.title("HQ Dispatch Center V5.3")
         self.root.resizable(True, True)
         
         if HAS_SV_TTK:
-            sv_ttk.set_theme("light")
+            sv_ttk.set_theme("light") # Default theme
             
         self.config = configparser.ConfigParser()
-        self.config.optionxform = str 
-        
+        self.config.optionxform = str # Prevents Python from forcing lowercase on keys
         self.load_config()
+        
         self.current_user = None
         self.current_user_role = None
         self.is_dirty = False
@@ -96,9 +106,12 @@ class DispatchCallApp:
         self.apply_theme_colors() 
         self.root.deiconify()
 
+    # ==========================================
+    # HARDWARE & THEME CONTROLS
+    # ==========================================
     def _play_siren(self):
         if AUDIO_ENABLED:
-            for _ in range(8):
+            for _ in range(8): # Rapid submarine klaxon
                 winsound.Beep(1500, 150) 
                 winsound.Beep(1000, 150)
 
@@ -106,32 +119,32 @@ class DispatchCallApp:
         if AUDIO_ENABLED: winsound.Beep(600, 400)
 
     def _sanitize_for_tkinter(self, text):
+        """Prevents emojis from mobile phones from crashing the Tkinter engine."""
         if not text: return ""
         return ''.join(c for c in str(text) if ord(c) <= 0xFFFF)
         
     def toggle_theme(self):
         if HAS_SV_TTK:
-            if sv_ttk.get_theme() == "dark":
-                sv_ttk.set_theme("light")
-            else:
-                sv_ttk.set_theme("dark")
+            if sv_ttk.get_theme() == "dark": sv_ttk.set_theme("light")
+            else: sv_ttk.set_theme("dark")
             self.apply_theme_colors()
 
     def apply_theme_colors(self):
+        """Dynamically switches SLA highlight tags based on Light/Dark mode."""
         is_dark = False
         if HAS_SV_TTK:
             is_dark = sv_ttk.get_theme() == "dark"
         
+        # Text Entry fields
         bg_color = "#1e1e1e" if is_dark else "#ffffff"
         fg_color = "white" if is_dark else "black"
         self.description_entry.configure(bg=bg_color, fg=fg_color, insertbackground=fg_color)
         
+        # Vivid Row Selection Override
         style = ttk.Style()
-        style.map("Treeview",
-            background=[('selected', '#0078D7')],
-            foreground=[('selected', 'white')]
-        )
+        style.map("Treeview", background=[('selected', '#0078D7')], foreground=[('selected', 'white')])
         
+        # Table Row Tags
         self.table.tag_configure("hascode", background="#222222" if is_dark else "#e8e8e8", foreground="white" if is_dark else "black")
         self.table.tag_configure("nocode", background="#222222" if is_dark else "#f0f0f0", foreground="white" if is_dark else "black")
         self.table.tag_configure("resolved", background="#1e4d2b" if is_dark else "#d0f0c0", foreground="white" if is_dark else "black")
@@ -139,6 +152,9 @@ class DispatchCallApp:
         self.table.tag_configure("high_priority", background="#3a5f80" if is_dark else "#cce5ff", foreground="white" if is_dark else "black")
         self.table.tag_configure("sla_critical", background="#8B0000", foreground="white") 
 
+    # ==========================================
+    # UI CONSTRUCTION
+    # ==========================================
     def _build_main_ui(self):
         self.sort_column = "ReportID"
         self.sort_direction = "ASC"
@@ -213,6 +229,7 @@ class DispatchCallApp:
         return True
 
     def _apply_permissions(self):
+        """Admins can view and export liability audit logs. Users cannot."""
         if self.current_user_role == 'admin': 
             self.history_button.grid()
             self.file_menu.entryconfig("Export Complete Audit Log", state="normal")
@@ -229,6 +246,7 @@ class DispatchCallApp:
         self.is_dirty = True
 
     def _setup_dirty_tracking(self):
+        """Tracks if user has unsaved text, protecting them from auto-refresh deletion."""
         self.caller_var.trace_add("write", self._set_dirty_flag)
         self.location_var.trace_add("write", self._set_dirty_flag)
         self.code_var.trace_add("write", self._set_dirty_flag)
@@ -405,6 +423,7 @@ class DispatchCallApp:
         if state == "disabled": self.resolved_by_var.set("")
 
     def _set_ui_busy(self, is_busy):
+        """Disables buttons while background threads are saving to database."""
         state = "disabled" if is_busy else "normal"
         for button in self.action_buttons: button.config(state=state)
         if is_busy: self.status_var.set("Working...")
@@ -420,6 +439,7 @@ class DispatchCallApp:
         return True
 
     def _run_in_thread(self, target, callback, *args):
+        """Wrapper to prevent the Tkinter GUI from freezing during network drive writes."""
         self._set_ui_busy(True)
         def worker():
             try:
@@ -432,6 +452,7 @@ class DispatchCallApp:
         self.executor.submit(worker)
 
     def _signal_discord_bot(self, endpoint, report_id, source=""):
+        """Sends a lightweight HTTP POST to the Discord Bot to wake it up."""
         payload = {"report_id": report_id, "source": source}
         try:
             req = urllib.request.Request(f"http://localhost:8080/{endpoint}", data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
@@ -439,6 +460,9 @@ class DispatchCallApp:
         except Exception as e:
             self.logger.warning(f"Background Discord signaling failed: {e}")
 
+    # ==========================================
+    # LOGIC CONTROLLERS
+    # ==========================================
     def add_call(self):
         if not self._validate_fields(): return
         self.primary_action_button.config(state="disabled")
@@ -565,6 +589,9 @@ class DispatchCallApp:
                 self.clear_input_fields()
         except AttributeError: pass
 
+    # ==========================================
+    # DATA EXPORTS & UPDATES
+    # ==========================================
     def export_report(self):
         filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], title="Export Dispatch Calls")
         if not filename: return
@@ -598,6 +625,7 @@ class DispatchCallApp:
         else: self.current_user = original_user
 
     def update_table(self, update_behavior='preserve', target_id=None, was_added=False, clear_fields=False):
+        """Fetches fresh data and calculates dynamic SLA colors."""
         pre_selection_id = self.table.item(self.table.selection()[0])['values'][0] if self.table.selection() else None
         pre_refresh_yview = self.table.yview()
         self._run_in_thread(self.manager.get_all_calls, lambda s, r: self._on_update_table_data_fetched(s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields), self.sort_column, self.sort_direction)
@@ -624,19 +652,18 @@ class DispatchCallApp:
             report_id = call.get('ReportID')
             current_calls.add(report_id)
             
-            is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
-            is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
-            
-            # AUDIO ALARM FIX: Do not play sirens for old, resolved, or cancelled tickets!
-            if not self.is_first_load and report_id not in self.known_calls and not is_canc and not is_res:
+            if not self.is_first_load and report_id not in self.known_calls:
                 db_code = call.get('Code', "")
                 if db_code in self.high_priority_codes: new_high_priority = True
                 else: new_standard_call = True
 
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
+            is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
+            is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
             is_hp = call.get('Code', "") in self.high_priority_codes
             
+            # SLA CALCULATIONS
             try:
                 call_dt = datetime.strptime(f"{call['CallDate']} {call['CallTime']}", "%Y-%m-%d %H:%M")
                 minutes_open = (now - call_dt).total_seconds() / 60
@@ -653,6 +680,7 @@ class DispatchCallApp:
             else:
                 call["TimeOpen"] = f"{int(minutes_open)} min"
                 
+                # Critical SLA: Unresolved for 30+ minutes
                 if minutes_open >= 30: 
                     tags.append("sla_critical")
                 elif is_hp: 
@@ -674,6 +702,8 @@ class DispatchCallApp:
             item_map[values[0]] = item_id
 
         self.known_calls = current_calls
+        
+        # Trigger audio alerts safely on the background thread
         if new_high_priority: self.executor.submit(self._play_siren)
         elif new_standard_call: self.executor.submit(self._play_ping)
         self.is_first_load = False
@@ -697,6 +727,7 @@ class DispatchCallApp:
     def on_search(self, event=None): self.update_table(update_behavior='preserve')
 
     def start_auto_refresh(self):
+        """Continuous poller to check the database for updates from other laptops."""
         self._auto_refresh_job = self.root.after(self.auto_refresh_interval_ms, self._auto_refresh_task)
 
     def _auto_refresh_task(self):
@@ -707,6 +738,7 @@ class DispatchCallApp:
             current_count = self.manager.check_if_updated()
             now = datetime.now()
             
+            # Force table redraw if DB changed OR if 60 seconds passed (to update visual SLA Timers)
             if current_count > self.last_update_count or (now - self.last_redraw_time).total_seconds() >= 60:
                 self.last_update_count = current_count
                 self.last_redraw_time = now
@@ -747,7 +779,7 @@ class DispatchCallApp:
             if val:
                 self.manager.add_passdown_note(self.current_user, val)
                 pd_win.destroy()
-                self.open_passdown_notes()
+                self.open_passdown_notes() # Refresh instantly
                 
         ttk.Button(input_frame, text="Add Note", command=save_note).pack(side="right")
 
