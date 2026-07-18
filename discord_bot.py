@@ -2,8 +2,8 @@
 DISCORD_BOT.PY
 Strict Read-Only Notification Bot.
 Watches for IPC HTTP Pings from the Tkinter GUI, then routes the incident 
-to the correct Discord channel based on priority code. Also logs Discord Thread 
-communications directly back into the SQLite database.
+strictly to the First Aid channel. Also logs Discord Thread communications 
+directly back into the SQLite database.
 """
 import discord
 from discord.ext import commands
@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 
 print("========================================")
-print("🟢 INITIALIZING HQ DISCORD BOT V5.3 (SMART ROUTING & LOGGING)...")
+print("🟢 INITIALIZING HQ FIRST AID DISCORD BOT V5.4...")
 print("========================================")
 
 # --- 1. CONFIGURATION LOAD ---
@@ -32,19 +32,15 @@ try:
     DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
     PORT = 8080 # IPC port used to talk to the Tkinter GUI
 
-    CHANNEL_MAP = {
-        "First Aid": int(config.get('DISCORD', 'first_aid_channel', fallback="0")),
-        "Code Adam": int(config.get('DISCORD', 'code_adam_channel', fallback="0"))
-    }
+    # Consolidated to only look for the First Aid channel
+    FIRST_AID_CHANNEL_ID = int(config.get('DISCORD', 'first_aid_channel', fallback="0"))
     
 except Exception as e:
     print(f"❌ ERROR LOADING CONFIG.INI: {e}")
     sys.exit(1)
 
-# Defines which codes are permitted to be pushed to Discord at all
-ALLOWED_DISCORD_CODES = ["Adam", "Blue", "Yellow"]
-# Defines which codes trigger an automatic Discord Thread creation
-HIGH_PRIORITY_CODES = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
+# Defines which codes are permitted to be pushed to Discord at all (Stripped "Adam")
+ALLOWED_DISCORD_CODES = ["Blue", "Yellow"]
 
 # Need message_content intent so the bot can read replies inside Discord Threads
 intents = discord.Intents.default()
@@ -76,23 +72,13 @@ def generate_embed(row):
     elif is_resolved: 
         color, title = discord.Color.green(), f"✅ Resolved: {report_id}"
     else:
-        # Dynamic Emojis/Colors based on Incident Code
+        # Medical Severity Emojis/Colors based on Incident Code
         if code == "Blue":
             color, title = discord.Color.blue(), f"🔵 Blue Alert: {report_id}"
         elif code == "Yellow":
             color, title = discord.Color.gold(), f"🟡 Yellow Alert: {report_id}"
-        elif code == "Adam":
-            color, title = discord.Color.magenta(), f"🧸 Code Adam: {report_id}"
-        elif code == "White / Mayday":
-            color, title = discord.Color.light_grey(), f"⚪ MAYDAY: {report_id}"
-        elif code == "Silver":
-            color, title = discord.Color.light_grey(), f"⚔️ Silver Alert: {report_id}"
-        elif code == "Black":
-            color, title = discord.Color.dark_theme(), f"⚫ Black Alert: {report_id}"
-        elif code == "Red":
-            color, title = discord.Color.red(), f"🔴 Red Alert: {report_id}"
         else:
-            color, title = discord.Color.orange(), f"🚨 HQ Alert: {report_id}"
+            color, title = discord.Color.orange(), f"🚨 HQ Medical Alert: {report_id}"
 
     # Protect against API crashes by capping string length
     safe_desc = str(row.get('Description', ''))
@@ -106,9 +92,8 @@ def generate_embed(row):
     if is_resolved:
         embed.add_field(name="Resolution State", value=f"Resolved by {row.get('ResolvedBy', '')} at {row.get('ResolutionTimestamp', '')}", inline=False)
         
-    embed.set_footer(text="HQ Dispatch Center - Read Only Log")
+    embed.set_footer(text="HQ Medical Center - Read Only Log")
     return embed
-
 
 # ==========================================
 # 2. LOCAL IPC SERVER (GUI to BOT Bridge)
@@ -118,7 +103,7 @@ class LocalCommunicationServer(BaseHTTPRequestHandler):
     Listens on localhost:8080. When the Tkinter GUI saves a ticket, it sends an 
     HTTP POST here. This wakes up the Discord bot to post/edit the message.
     """
-    def log_message(self, format, *args): pass # Supress noisy console logs
+    def log_message(self, format, *args): pass # Suppress noisy console logs
     
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
@@ -148,18 +133,13 @@ async def post_dispatch_message(report_id, source):
         
         incident_code = str(row['Code'])
         
-        # FILTER: Prevent low-priority spam on Discord
+        # FILTER: Prevent non-medical or unconfigured spam from flooding the channel
         if incident_code not in ALLOWED_DISCORD_CODES: 
-            print(f"⏩ [SKIPPED] {report_id} has code {incident_code} (Not configured for Discord broadcast).")
+            print(f"⏩ [SKIPPED] {report_id} has code {incident_code} (Not configured for First Aid channel).")
             return
 
-        # SMART ROUTING: Overrides user-selected source based on severe codes
-        if incident_code == "Adam":
-            target_channel_id = CHANNEL_MAP.get("Code Adam")
-        else: # Blue or Yellow
-            target_channel_id = CHANNEL_MAP.get("First Aid")
-
-        channel = bot.get_channel(target_channel_id) or await bot.fetch_channel(target_channel_id)
+        # Direct Pipeline to the First Aid target channel
+        channel = bot.get_channel(FIRST_AID_CHANNEL_ID) or await bot.fetch_channel(FIRST_AID_CHANNEL_ID)
 
         embed = generate_embed(row)
         msg = await channel.send(embed=embed)
@@ -167,9 +147,9 @@ async def post_dispatch_message(report_id, source):
         # Save the Discord Message ID so we can edit it later
         conn.execute("UPDATE calls SET DiscordMessageID=?, DiscordChannelID=? WHERE ReportID=?", (str(msg.id), str(channel.id), report_id))
         conn.commit()
-        print(f"✅ [SUCCESS] {report_id} posted to Discord channel {channel.name}!")
+        print(f"✅ [SUCCESS] {report_id} posted directly to First Aid channel ({channel.name})!")
         
-        # Create a thread for communications
+        # Create an operational thread for medical team coordination
         try: 
             await msg.create_thread(name=f"💬 Comms: {report_id}", auto_archive_duration=1440)
         except Exception as thread_err: 
@@ -192,18 +172,17 @@ async def edit_dispatch_message(report_id):
         
         embed = generate_embed(row)
         await message.edit(embed=embed)
-        print(f"🔄 [UPDATED] {report_id} modified on Discord.")
+        print(f"🔄 [UPDATED] {report_id} modified in First Aid logs.")
         
     except Exception as e: print(f"❌ [BOT ERROR] Discord update failed: {e}")
     finally: conn.close()
-
 
 # ==========================================
 # 3. DISCORD THREAD LOGGER (LIABILITY AUDITING)
 # ==========================================
 @bot.event
 async def on_message(message):
-    """Silently intercepts field chat and logs it to HQ Database for post-con review."""
+    """Silently intercepts field chat inside medical threads and logs it to HQ Database for post-con review."""
     if message.author.bot: return
 
     # Only log messages that occur inside incident threads
@@ -241,7 +220,7 @@ async def on_ready():
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     print(f"✅ Read-Only Logger successfully logged into Discord as {bot.user}")
-    print("🚨 BOT IS FULLY ONLINE AND READY.")
+    print("🚨 BOT IS FULLY ONLINE AND ROUTING EXCLUSIVELY TO FIRST AID.")
 
 if __name__ == "__main__":
     try:

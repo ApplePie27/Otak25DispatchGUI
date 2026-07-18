@@ -2,7 +2,8 @@
 GUI.PY
 The Tkinter desktop interface for HQ Dispatchers.
 Implements non-blocking ThreadPoolExecutors, SLA Timer evaluations, 
-and HTTP IPC requests to notify the Discord Bot of changes.
+in-place memory-safe rendering, and HTTP IPC requests to notify the Discord Bot.
+Features an Admin-only live operational dashboard.
 """
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog, scrolledtext
@@ -16,13 +17,6 @@ import csv
 import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-
-# Audio Support for High-Priority Alarms
-try:
-    import winsound
-    AUDIO_ENABLED = True
-except ImportError:
-    AUDIO_ENABLED = False
 
 # Modern UI Theme
 try:
@@ -72,18 +66,20 @@ class DispatchCallApp:
         self.logger = logger
         self.manager = data_manager
         
-        # Using a single-worker executor prevents the UI from freezing during network writes
+        # Database executor prevents UI freezing during local network writes
         self.executor = ThreadPoolExecutor(max_workers=1)
+        # Dedicated executor for IPC pings so Discord bots don't hold up DB writes
+        self.ipc_executor = ThreadPoolExecutor(max_workers=2)
         
         self.known_calls = set()
         self.is_first_load = True
         self.last_update_count = -1
         self.last_redraw_time = datetime.now()
         
-        # Triggers Audio Sirens and SLA Overrides
+        # Triggers SLA Overrides
         self.high_priority_codes = ["White / Mayday", "Silver", "Black", "Red", "Blue", "Adam"]
         
-        self.root.title("HQ Dispatch Center V5.3")
+        self.root.title("HQ Dispatch Center V5.4")
         self.root.resizable(True, True)
         
         if HAS_SV_TTK:
@@ -109,15 +105,6 @@ class DispatchCallApp:
     # ==========================================
     # HARDWARE & THEME CONTROLS
     # ==========================================
-    def _play_siren(self):
-        if AUDIO_ENABLED:
-            for _ in range(8): # Rapid submarine klaxon
-                winsound.Beep(1500, 150) 
-                winsound.Beep(1000, 150)
-
-    def _play_ping(self):
-        if AUDIO_ENABLED: winsound.Beep(600, 400)
-
     def _sanitize_for_tkinter(self, text):
         """Prevents emojis from mobile phones from crashing the Tkinter engine."""
         if not text: return ""
@@ -168,6 +155,7 @@ class DispatchCallApp:
         self.resolved_by_var = tk.StringVar()
         self.code_description_var = tk.StringVar()
         
+        self.create_dashboard()
         self.create_status_bar()
         self.create_log_area()
         self.setup_logging_handler()
@@ -229,13 +217,15 @@ class DispatchCallApp:
         return True
 
     def _apply_permissions(self):
-        """Admins can view and export liability audit logs. Users cannot."""
+        """Admins can view and export liability audit logs, and view the live dashboard."""
         if self.current_user_role == 'admin': 
             self.history_button.grid()
             self.file_menu.entryconfig("Export Complete Audit Log", state="normal")
+            self.dashboard_frame.grid()
         else: 
             self.history_button.grid_remove()
             self.file_menu.entryconfig("Export Complete Audit Log", state="disabled")
+            self.dashboard_frame.grid_remove()
         
     def _setup_keyboard_shortcuts(self):
         self.root.bind('<Control-s>', lambda event: self.modify_call() if self.table.selection() else None)
@@ -256,14 +246,27 @@ class DispatchCallApp:
         self.description_entry.bind("<KeyRelease>", self._set_dirty_flag)
         self.caller_var.trace_add("write", lambda *args: self.caller_var.set(self.caller_var.get().upper()))
 
+    def create_dashboard(self):
+        self.dashboard_frame = ttk.LabelFrame(self.root, text="HQ Operational Dashboard (Admin)")
+        self.dashboard_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        
+        self.open_first_aid_var = tk.StringVar(value="Active First Aid: 0")
+        self.peak_sla_var = tk.StringVar(value="Peak SLA: 0 min")
+        self.total_volume_var = tk.StringVar(value="Total Shift Volume: 0")
+        
+        # If in light mode, text is red; SV_TTK handles default themes elegantly.
+        ttk.Label(self.dashboard_frame, textvariable=self.open_first_aid_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").pack(side="left", padx=20, pady=5)
+        ttk.Label(self.dashboard_frame, textvariable=self.peak_sla_var, font=("TkDefaultFont", 10, "bold")).pack(side="left", padx=20, pady=5)
+        ttk.Label(self.dashboard_frame, textvariable=self.total_volume_var, font=("TkDefaultFont", 10, "bold")).pack(side="right", padx=20, pady=5)
+
     def create_status_bar(self):
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor="w")
-        status_bar.grid(row=5, column=0, columnspan=2, sticky="ew")
+        status_bar.grid(row=6, column=0, columnspan=2, sticky="ew")
 
     def create_log_area(self):
         self.log_area = scrolledtext.ScrolledText(self.root, height=5, state="disabled")
-        self.log_area.grid(row=4, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+        self.log_area.grid(row=5, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
 
     def create_menu_bar(self):
         menubar = tk.Menu(self.root)
@@ -283,7 +286,7 @@ class DispatchCallApp:
 
     def create_input_fields(self):
         fields_frame = ttk.LabelFrame(self.root, text="Dispatch Call Details")
-        fields_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        fields_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         uniform_width = 30
         
         ttk.Label(fields_frame, text="Input Medium:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
@@ -345,7 +348,7 @@ class DispatchCallApp:
 
     def create_buttons(self):
         buttons_frame = ttk.Frame(self.root)
-        buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        buttons_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
         
         style = ttk.Style()
         style.configure("Bold.TButton", font=("TkDefaultFont", 10, "bold"))
@@ -375,7 +378,7 @@ class DispatchCallApp:
         }
         
         table_frame = ttk.Frame(self.root)
-        table_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+        table_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
 
@@ -403,18 +406,23 @@ class DispatchCallApp:
 
     def create_search_bar(self):
         search_frame = ttk.Frame(self.root)
-        search_frame.grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        search_frame.grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
         ttk.Label(search_frame, text="Search:").grid(row=0, column=0, sticky="w", padx=(0,5))
         self.search_var = tk.StringVar()
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=40)
         search_entry.grid(row=0, column=1, padx=5, sticky="w")
         search_entry.bind("<KeyRelease>", lambda e: self.on_search())
         
+        # Network bandwidth saving toggle
+        self.active_only_var = tk.BooleanVar(value=True)
+        active_check = ttk.Checkbutton(search_frame, text="Active Calls Only", variable=self.active_only_var, command=lambda: self.update_table(update_behavior='preserve'))
+        active_check.grid(row=0, column=2, padx=(10, 5), sticky="w")
+        
         scroll_check = ttk.Checkbutton(search_frame, text="Auto-Scroll to Latest", variable=self.auto_scroll_var)
-        scroll_check.grid(row=0, column=2, padx=(20, 5), sticky="w")
+        scroll_check.grid(row=0, column=3, padx=(10, 5), sticky="w")
 
     def configure_grid_weights(self):
-        self.root.grid_rowconfigure(2, weight=1)
+        self.root.grid_rowconfigure(3, weight=1) # Expands the table frame
         self.root.grid_columnconfigure(0, weight=1)
 
     def toggle_resolved_entry(self):
@@ -481,8 +489,9 @@ class DispatchCallApp:
             self.logger.info(f"Call added: {new_report_id}")
             self.is_dirty = False
             
+            # Send IPC ping asynchronously via dedicated ThreadPool
             if self.input_medium_var.get().strip() != "Social Media":
-                self.executor.submit(self._signal_discord_bot, "dispatch", new_report_id, self.source_var.get().strip())
+                self.ipc_executor.submit(self._signal_discord_bot, "dispatch", new_report_id, self.source_var.get().strip())
             
             self.known_calls.add(new_report_id)
             self.last_update_count = self.manager.check_if_updated()
@@ -515,7 +524,7 @@ class DispatchCallApp:
             self.is_dirty = False
             self.last_update_count = self.manager.check_if_updated()
             self.update_table(clear_fields=True)
-            self.executor.submit(self._signal_discord_bot, "update", report_id)
+            self.ipc_executor.submit(self._signal_discord_bot, "update", report_id)
         else:
             messagebox.showerror("Database Error", f"Failed to modify call: {result_or_error}")
             self.primary_action_button.config(state="normal")
@@ -628,36 +637,40 @@ class DispatchCallApp:
         """Fetches fresh data and calculates dynamic SLA colors."""
         pre_selection_id = self.table.item(self.table.selection()[0])['values'][0] if self.table.selection() else None
         pre_refresh_yview = self.table.yview()
-        self._run_in_thread(self.manager.get_all_calls, lambda s, r: self._on_update_table_data_fetched(s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields), self.sort_column, self.sort_direction)
+        
+        # Pass the active_only_var to the database manager
+        self._run_in_thread(self.manager.get_all_calls, 
+                            lambda s, r: self._on_update_table_data_fetched(s, r, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields), 
+                            self.sort_column, self.sort_direction, self.active_only_var.get())
         
     def _on_update_table_data_fetched(self, success, all_calls, update_behavior, target_id, was_added, pre_selection_id, pre_refresh_yview, clear_fields):
         if not success: return
 
-        self.table.unbind("<<TreeviewSelect>>")
-        self.table.delete(*self.table.get_children())
+        # Map currently displayed items to patch RAM leak
+        existing_items = self.table.get_children()
+        item_id_map = {}
+        for item in existing_items:
+            vals = self.table.item(item, 'values')
+            if vals: item_id_map[vals[0]] = item
 
-        item_map = {}
         filter_text = self.search_var.get().lower().strip()
         display_keys = list(self.columns.keys())
         
-        current_calls = set()
-        new_high_priority = False
-        new_standard_call = False
+        current_report_ids = set()
         now = datetime.now()
+        
+        # Dashboard Tracking Variables
+        active_first_aid = 0
+        peak_sla = 0
+        valid_calls_count = 0
 
-        for call_row in all_calls:
+        # Iterate and update in-place instead of destroying nodes
+        for index, call_row in enumerate(all_calls):
             call = dict(call_row)
             if call.get('Deleted'): continue
             
+            valid_calls_count += 1
             report_id = call.get('ReportID')
-            current_calls.add(report_id)
-            
-            if not self.is_first_load and report_id not in self.known_calls:
-                db_code = call.get('Code', "")
-                if db_code in self.high_priority_codes: new_high_priority = True
-                else: new_standard_call = True
-
-            if filter_text and not any(filter_text in str(v).lower() for v in call.values()): continue
             
             is_res = str(call.get('ResolutionStatus', "False")).lower() in ('1', 'true')
             is_canc = str(call.get('Cancelled', "False")).lower() in ('1', 'true')
@@ -669,6 +682,18 @@ class DispatchCallApp:
                 minutes_open = (now - call_dt).total_seconds() / 60
             except:
                 minutes_open = 0
+                
+            # Operational Dashboard Analytics (Calculated before Search Filter hides rows)
+            if not is_res and not is_canc:
+                peak_sla = max(peak_sla, minutes_open)
+                if call.get('Code', "") in ["Blue", "Yellow"]:
+                    active_first_aid += 1
+            
+            # Search Filter Check
+            if filter_text and not any(filter_text in str(v).lower() for v in call.values()): 
+                continue
+                
+            current_report_ids.add(report_id)
             
             tags = []
             if is_canc:
@@ -679,12 +704,8 @@ class DispatchCallApp:
                 call["TimeOpen"] = "Closed"
             else:
                 call["TimeOpen"] = f"{int(minutes_open)} min"
-                
-                # Critical SLA: Unresolved for 30+ minutes
-                if minutes_open >= 30: 
-                    tags.append("sla_critical")
-                elif is_hp: 
-                    tags.append("high_priority")
+                if minutes_open >= 30: tags.append("sla_critical")
+                elif is_hp: tags.append("high_priority")
                 else:
                     db_code = call.get('Code', "")
                     tags.append("nocode" if not db_code or db_code.lower() == "no_code" else "hascode")
@@ -698,28 +719,44 @@ class DispatchCallApp:
                 else:
                     values.append(self._sanitize_for_tkinter(call.get(key, "")))
             
-            item_id = self.table.insert("", tk.END, values=values, tags=tags)
-            item_map[values[0]] = item_id
+            # Update existing row or insert new one cleanly
+            if report_id in item_id_map:
+                tree_id = item_id_map[report_id]
+                self.table.item(tree_id, values=values, tags=tags)
+                self.table.move(tree_id, "", index) # Enforce sorting order
+            else:
+                tree_id = self.table.insert("", index, values=values, tags=tags)
+                item_id_map[report_id] = tree_id
 
-        self.known_calls = current_calls
+        # Clean up rows that were resolved/deleted and no longer belong in the view
+        for rep_id, tree_id in item_id_map.items():
+            if rep_id not in current_report_ids:
+                self.table.delete(tree_id)
+
+        self.known_calls = current_report_ids
         
-        # Trigger audio alerts safely on the background thread
-        if new_high_priority: self.executor.submit(self._play_siren)
-        elif new_standard_call: self.executor.submit(self._play_ping)
+        # Update Dashboard Widgets
+        self.open_first_aid_var.set(f"Active First Aid (Blue/Yellow): {active_first_aid}")
+        self.peak_sla_var.set(f"Peak SLA: {int(peak_sla)} min")
+        self.total_volume_var.set(f"Total Shift Volume: {valid_calls_count}")
+        
         self.is_first_load = False
 
-        if update_behavior == 'focus':
-            if target_id and target_id in item_map:
-                self.table.selection_set(item_map[target_id])
-                self.table.focus(item_map[target_id])
-                self.table.see(item_map[target_id])
+        if update_behavior == 'focus' and target_id and target_id in item_id_map:
+            self.table.selection_set(item_id_map[target_id])
+            self.table.focus(item_id_map[target_id])
+            self.table.see(item_id_map[target_id])
             if was_added: self.clear_input_fields()
         elif update_behavior == 'scroll_to_end':
-            if pre_selection_id and pre_selection_id in item_map: self.table.selection_set(item_map[pre_selection_id])
-            if self.table.get_children(): self.table.see(self.table.get_children()[-1])
+            if pre_selection_id and pre_selection_id in item_id_map: 
+                self.table.selection_set(item_id_map[pre_selection_id])
+            if self.table.get_children(): 
+                self.table.see(self.table.get_children()[-1])
         else:
-            if pre_selection_id and pre_selection_id in item_map: self.table.selection_set(item_map[pre_selection_id])
-            if pre_refresh_yview and pre_refresh_yview[0] is not None: self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
+            if pre_selection_id and pre_selection_id in item_id_map: 
+                self.table.selection_set(item_id_map[pre_selection_id])
+            if pre_refresh_yview and pre_refresh_yview[0] is not None: 
+                self.root.after(10, self.table.yview_moveto, pre_refresh_yview[0])
                 
         if clear_fields and not self.is_dirty: self.clear_input_fields()
         self.table.bind("<<TreeviewSelect>>", self.load_selected_call)
@@ -804,5 +841,6 @@ class DispatchCallApp:
         if self.is_dirty and not messagebox.askyesno("Exit", "Are you sure you want to exit?"): return
         if hasattr(self, '_auto_refresh_job'): self.root.after_cancel(self._auto_refresh_job)
         self.executor.shutdown(wait=False)
+        self.ipc_executor.shutdown(wait=False)
         self.manager.close()
         self.root.destroy()

@@ -1,12 +1,30 @@
 """
 DATA_MANAGER.PY
 Handles all SQLite database interactions.
-Optimized heavily with SQLite PRAGMAs to survive multi-computer concurrency 
-over a spotty Windows SMB File Share.
+Optimized heavily with SQLite PRAGMAs and a custom retry decorator 
+to survive multi-computer concurrency over a spotty Windows SMB File Share.
 """
 import sqlite3
 from datetime import datetime
 import os
+import time
+from functools import wraps
+
+def sqlite_retry(max_retries=5, delay=0.5):
+    """Intercepts 'Database Locked' errors over SMB and retries silently."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e).lower() and attempt < max_retries - 1:
+                        time.sleep(delay)
+                    else:
+                        raise
+        return wrapper
+    return decorator
 
 class DataManager:
     def __init__(self, db_filename):
@@ -85,12 +103,16 @@ class DataManager:
             (call_id, timestamp, user, action, details)
         )
 
-    def get_all_calls(self, sort_by="ReportID", sort_order="ASC"):
+    def get_all_calls(self, sort_by="ReportID", sort_order="ASC", active_only=False):
         valid_columns = ["ReportID", "CallDate", "Location", "Code", "ResolutionStatus", "Cancelled"]
         if sort_by not in valid_columns: sort_by = "ReportID"
         sort_order = "DESC" if sort_order.upper() == "DESC" else "ASC"
         
-        query = f"SELECT * FROM calls WHERE Deleted = 0 OR Deleted IS NULL ORDER BY {sort_by} {sort_order}"
+        query = "SELECT * FROM calls WHERE (Deleted = 0 OR Deleted IS NULL)"
+        if active_only:
+            query += " AND (ResolutionStatus = 0 OR ResolutionStatus IS NULL) AND (Cancelled = 0 OR Cancelled IS NULL)"
+            
+        query += f" ORDER BY {sort_by} {sort_order}"
         cursor = self.conn.execute(query)
         return cursor.fetchall()
 
@@ -111,11 +133,13 @@ class DataManager:
         cursor = self.conn.execute("SELECT * FROM passdown_notes ORDER BY Timestamp DESC LIMIT 50")
         return cursor.fetchall()
 
+    @sqlite_retry()
     def add_passdown_note(self, user, note):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.conn:
             self.conn.execute("INSERT INTO passdown_notes (Timestamp, User, Note) VALUES (?, ?, ?)", (timestamp, user, note))
 
+    @sqlite_retry()
     def add_call(self, call, current_user):
         """Creates a new incident and assigns a formatted DC-#### ID."""
         now = datetime.now()
@@ -139,6 +163,7 @@ class DataManager:
             self._log_history(report_id, current_user, "Call Created")
         return report_id
 
+    @sqlite_retry()
     def modify_call(self, report_id, updated_call, current_user):
         """Updates a call and automatically logs exactly which fields the dispatcher changed."""
         original_call_row = self.get_call_by_id(report_id)
