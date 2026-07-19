@@ -3,7 +3,7 @@ GUI.PY
 The Tkinter desktop interface for HQ Dispatchers.
 Implements non-blocking ThreadPoolExecutors, SLA Timer evaluations, 
 in-place memory-safe rendering, and HTTP IPC requests to notify the Discord Bot.
-Features an Admin-only live operational dashboard.
+Features an expanded Admin-only live operational dashboard.
 """
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog, scrolledtext
@@ -250,14 +250,21 @@ class DispatchCallApp:
         self.dashboard_frame = ttk.LabelFrame(self.root, text="HQ Operational Dashboard (Admin)")
         self.dashboard_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
         
-        self.open_first_aid_var = tk.StringVar(value="Active First Aid: 0")
+        # Define StringVars for all metrics
+        self.open_first_aid_var = tk.StringVar(value="Active Med (Blue/Yellow): 0")
+        self.open_security_var = tk.StringVar(value="Active Security (Adam/Threats): 0")
+        self.open_fire_var = tk.StringVar(value="Active Fire/Hazmat (Red/Brown): 0")
         self.peak_sla_var = tk.StringVar(value="Peak SLA: 0 min")
         self.total_volume_var = tk.StringVar(value="Total Shift Volume: 0")
         
-        # If in light mode, text is red; SV_TTK handles default themes elegantly.
-        ttk.Label(self.dashboard_frame, textvariable=self.open_first_aid_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").pack(side="left", padx=20, pady=5)
-        ttk.Label(self.dashboard_frame, textvariable=self.peak_sla_var, font=("TkDefaultFont", 10, "bold")).pack(side="left", padx=20, pady=5)
-        ttk.Label(self.dashboard_frame, textvariable=self.total_volume_var, font=("TkDefaultFont", 10, "bold")).pack(side="right", padx=20, pady=5)
+        # Row 0: Critical Incident Counters (Highlighted in Red)
+        ttk.Label(self.dashboard_frame, textvariable=self.open_first_aid_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=0, padx=15, pady=2, sticky="w")
+        ttk.Label(self.dashboard_frame, textvariable=self.open_security_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=1, padx=15, pady=2, sticky="w")
+        ttk.Label(self.dashboard_frame, textvariable=self.open_fire_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=2, padx=15, pady=2, sticky="w")
+        
+        # Row 1: General SLA & Volume Metrics
+        ttk.Label(self.dashboard_frame, textvariable=self.peak_sla_var, font=("TkDefaultFont", 10, "bold")).grid(row=1, column=0, padx=15, pady=2, sticky="w")
+        ttk.Label(self.dashboard_frame, textvariable=self.total_volume_var, font=("TkDefaultFont", 10, "bold")).grid(row=1, column=1, padx=15, pady=2, sticky="w")
 
     def create_status_bar(self):
         self.status_var = tk.StringVar(value="Ready")
@@ -659,8 +666,10 @@ class DispatchCallApp:
         current_report_ids = set()
         now = datetime.now()
         
-        # Dashboard Tracking Variables
+        # --- NEW DASHBOARD TRACKING VARIABLES ---
         active_first_aid = 0
+        active_security = 0
+        active_fire = 0
         peak_sla = 0
         valid_calls_count = 0
 
@@ -683,11 +692,18 @@ class DispatchCallApp:
             except:
                 minutes_open = 0
                 
-            # Operational Dashboard Analytics (Calculated before Search Filter hides rows)
+            # --- NEW OPERATIONAL DASHBOARD ANALYTICS ---
             if not is_res and not is_canc:
                 peak_sla = max(peak_sla, minutes_open)
-                if call.get('Code', "") in ["Blue", "Yellow"]:
+                db_code = call.get('Code', "")
+                
+                # Sort open calls into their respective buckets
+                if db_code in ["Blue", "Yellow"]:
                     active_first_aid += 1
+                elif db_code in ["Adam", "Black", "White / Mayday", "Silver"]:
+                    active_security += 1
+                elif db_code in ["Red", "Brown"]:
+                    active_fire += 1
             
             # Search Filter Check
             if filter_text and not any(filter_text in str(v).lower() for v in call.values()): 
@@ -735,8 +751,10 @@ class DispatchCallApp:
 
         self.known_calls = current_report_ids
         
-        # Update Dashboard Widgets
-        self.open_first_aid_var.set(f"Active First Aid (Blue/Yellow): {active_first_aid}")
+        # --- UPDATE DASHBOARD WIDGETS ---
+        self.open_first_aid_var.set(f"Active Med (Blue/Yellow): {active_first_aid}")
+        self.open_security_var.set(f"Active Security (Adam/Threats): {active_security}")
+        self.open_fire_var.set(f"Active Fire/Hazmat (Red/Brown): {active_fire}")
         self.peak_sla_var.set(f"Peak SLA: {int(peak_sla)} min")
         self.total_volume_var.set(f"Total Shift Volume: {valid_calls_count}")
         

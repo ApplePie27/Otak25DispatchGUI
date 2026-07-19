@@ -735,3 +735,78 @@ AttributeError: 'DispatchCallApp' object has no attribute 'on_close'
 2026-07-18 17:50:58,493 - DispatchApp - INFO - Call added: DC26-0002
 2026-07-18 17:51:11,685 - DispatchApp - INFO - Call added: DC26-0003
 2026-07-18 18:00:38,132 - DispatchApp - INFO - Application starting up.
+2026-07-18 20:17:52,563 - DispatchApp - INFO - Application starting up.
+2026-07-18 20:58:14,898 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:07:11,598 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:07:23,561 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:07:34,621 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:08:20,548 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:09:05,687 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:09:07,467 - DispatchApp - CRITICAL - Unhandled exception: bad stickyness value "center": must be a string containing n, e, s, and/or w
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 61, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 101, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 158, in _build_main_ui
+    self.create_dashboard()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 265, in create_dashboard
+    ttk.Label(self.dashboard_frame, textvariable=self.open_security_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=1, padx=15, pady=2, sticky="center")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\tkinter\__init__.py", line 2710, in grid_configure
+    self.tk.call(
+    ~~~~~~~~~~~~^
+          ('grid', 'configure', self._w)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          + self._options(cnf, kw))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: bad stickyness value "center": must be a string containing n, e, s, and/or w
+2026-07-18 21:11:40,080 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:11:41,762 - DispatchApp - CRITICAL - Unhandled exception: bad stickyness value "center": must be a string containing n, e, s, and/or w
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 61, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 101, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 158, in _build_main_ui
+    self.create_dashboard()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 265, in create_dashboard
+    ttk.Label(self.dashboard_frame, textvariable=self.open_security_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=1, padx=15, pady=2, sticky="center")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\tkinter\__init__.py", line 2710, in grid_configure
+    self.tk.call(
+    ~~~~~~~~~~~~^
+          ('grid', 'configure', self._w)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          + self._options(cnf, kw))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: bad stickyness value "center": must be a string containing n, e, s, and/or w
+2026-07-18 21:13:49,151 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:14:07,080 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:14:08,488 - DispatchApp - CRITICAL - Unhandled exception: bad stickyness value "center": must be a string containing n, e, s, and/or w
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\main.py", line 61, in <module>
+    app = DispatchCallApp(root, app_logger, data_manager)
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 101, in __init__
+    self._build_main_ui()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 158, in _build_main_ui
+    self.create_dashboard()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\Otak25DispatchGUI\gui.py", line 265, in create_dashboard
+    ttk.Label(self.dashboard_frame, textvariable=self.open_security_var, font=("TkDefaultFont", 10, "bold"), foreground="#C00000").grid(row=0, column=1, padx=15, pady=2, sticky="center")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\tkinter\__init__.py", line 2710, in grid_configure
+    self.tk.call(
+    ~~~~~~~~~~~~^
+          ('grid', 'configure', self._w)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          + self._options(cnf, kw))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: bad stickyness value "center": must be a string containing n, e, s, and/or w
+2026-07-18 21:14:14,945 - DispatchApp - INFO - Application starting up.
+2026-07-18 21:14:29,848 - DispatchApp - INFO - Application starting up.
