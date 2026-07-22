@@ -1,233 +1,276 @@
 ﻿"""
 DISCORD_BOT.PY
-Strict Read-Only Notification Bot.
-Watches for IPC HTTP Pings from the Tkinter GUI, then routes the incident 
-strictly to the First Aid channel. Also logs Discord Thread communications 
-directly back into the SQLite database.
+Companion bot for the HQ Dispatch System.
+Acts as a read-only notification pipeline, routing Medical/First Aid 
+alerts to Discord and silently logging field replies back to the local database.
 """
 import discord
 from discord.ext import commands
+from aiohttp import web
 import sqlite3
-import configparser
-import asyncio
-import threading
 import json
+import asyncio
+import configparser
 import os
-import sys
-import traceback
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
+import time
 
-print("========================================")
-print("🟢 INITIALIZING HQ FIRST AID DISCORD BOT V5.4...")
-print("========================================")
+# ==========================================
+# CONFIGURATION & SETUP
+# ==========================================
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-# --- 1. CONFIGURATION LOAD ---
-try:
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read('config.ini')
+BOT_TOKEN = config.get('DISCORD', 'bot_token', fallback='')
+FIRST_AID_CHANNEL_ID = config.getint('DISCORD', 'first_aid_channel', fallback=0)
+DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
 
-    DISCORD_TOKEN = config.get('DISCORD', 'bot_token', fallback="").strip()
-    DB_PATH = config.get('DATABASE', 'filename', fallback='dispatch.db')
-    PORT = 8080 # IPC port used to talk to the Tkinter GUI
-
-    # Consolidated to only look for the First Aid channel
-    FIRST_AID_CHANNEL_ID = int(config.get('DISCORD', 'first_aid_channel', fallback="0"))
-    
-except Exception as e:
-    print(f"❌ ERROR LOADING CONFIG.INI: {e}")
-    sys.exit(1)
-
-# Defines which codes are permitted to be pushed to Discord at all (Stripped "Adam")
+# Strict routing: Bot will only broadcast these codes
 ALLOWED_DISCORD_CODES = ["Blue", "Yellow"]
 
-# Need message_content intent so the bot can read replies inside Discord Threads
+# Enable necessary intents (requires Message Content intent in Discord Dev Portal)
 intents = discord.Intents.default()
-intents.message_content = True 
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ==========================================
+# DATABASE HELPER
+# ==========================================
 def get_db_connection():
-    abs_path = os.path.abspath(DB_PATH)
-    conn = sqlite3.connect(abs_path, timeout=20.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=TRUNCATE;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA temp_store=MEMORY;")
-    conn.execute("PRAGMA cache_size=-64000;")
-    conn.execute("PRAGMA busy_timeout=20000;")
-    return conn
-
-def generate_embed(row):
-    """Generates the visual Dispatch Card for Discord channels."""
-    row = dict(row) # Safely convert SQLite row to Python dict
-    report_id = row['ReportID']
-    is_resolved = str(row.get('ResolutionStatus', 'False')).lower() in ('1', 'true')
-    is_cancelled = str(row.get('Cancelled', 'False')).lower() in ('1', 'true')
-    code = str(row.get('Code', ''))
-    
-    # Visual State Logic
-    if is_cancelled: 
-        color, title = discord.Color.light_grey(), f"🚫 Cancelled/Void: {report_id}"
-    elif is_resolved: 
-        color, title = discord.Color.green(), f"✅ Resolved: {report_id}"
-    else:
-        # Medical Severity Emojis/Colors based on Incident Code
-        if code == "Blue":
-            color, title = discord.Color.blue(), f"🔵 Blue Alert: {report_id}"
-        elif code == "Yellow":
-            color, title = discord.Color.gold(), f"🟡 Yellow Alert: {report_id}"
-        else:
-            color, title = discord.Color.orange(), f"🚨 HQ Medical Alert: {report_id}"
-
-    # Protect against API crashes by capping string length
-    safe_desc = str(row.get('Description', ''))
-    if len(safe_desc) > 4000: safe_desc = safe_desc[:3997] + "..."
-
-    embed = discord.Embed(title=title, description=safe_desc, color=color)
-    embed.add_field(name="Location", value=str(row.get('Location', ''))[:1024], inline=True)
-    embed.add_field(name="Source Dept", value=str(row.get('Source', '')).replace("Discord: ", "")[:1024], inline=True)
-    embed.add_field(name="Incident Code", value=code[:1024] if code else "No_Code", inline=True)
-        
-    if is_resolved:
-        embed.add_field(name="Resolution State", value=f"Resolved by {row.get('ResolvedBy', '')} at {row.get('ResolutionTimestamp', '')}", inline=False)
-        
-    embed.set_footer(text="HQ Medical Center - Read Only Log")
-    return embed
-
-# ==========================================
-# 2. LOCAL IPC SERVER (GUI to BOT Bridge)
-# ==========================================
-class LocalCommunicationServer(BaseHTTPRequestHandler):
-    """
-    Listens on localhost:8080. When the Tkinter GUI saves a ticket, it sends an 
-    HTTP POST here. This wakes up the Discord bot to post/edit the message.
-    """
-    def log_message(self, format, *args): pass # Suppress noisy console logs
-    
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        data = json.loads(self.rfile.read(content_length).decode('utf-8'))
-        
-        print(f"📥 [IPC SIGNAL RECEIVED] Endpoint: {self.path} | Data: {data}")
-        
-        if self.path == "/dispatch":
-            asyncio.run_coroutine_threadsafe(post_dispatch_message(data.get("report_id"), data.get("source")), bot.loop)
-            self.send_response(200)
-            self.end_headers()
-        elif self.path == "/update":
-            asyncio.run_coroutine_threadsafe(edit_dispatch_message(data.get("report_id")), bot.loop)
-            self.send_response(200)
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-async def post_dispatch_message(report_id, source):
-    await asyncio.sleep(0.5) # Wait for network drive SMB cache to settle
-    conn = get_db_connection()
-    try:
-        conn.commit()
-        row = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,)).fetchone()
-        if not row: return
-        
-        incident_code = str(row['Code'])
-        
-        # FILTER: Prevent non-medical or unconfigured spam from flooding the channel
-        if incident_code not in ALLOWED_DISCORD_CODES: 
-            print(f"⏩ [SKIPPED] {report_id} has code {incident_code} (Not configured for First Aid channel).")
-            return
-
-        # Direct Pipeline to the First Aid target channel
-        channel = bot.get_channel(FIRST_AID_CHANNEL_ID) or await bot.fetch_channel(FIRST_AID_CHANNEL_ID)
-
-        embed = generate_embed(row)
-        msg = await channel.send(embed=embed)
-        
-        # Save the Discord Message ID so we can edit it later
-        conn.execute("UPDATE calls SET DiscordMessageID=?, DiscordChannelID=? WHERE ReportID=?", (str(msg.id), str(channel.id), report_id))
-        conn.commit()
-        print(f"✅ [SUCCESS] {report_id} posted directly to First Aid channel ({channel.name})!")
-        
-        # Create an operational thread for medical team coordination
-        try: 
-            await msg.create_thread(name=f"💬 Comms: {report_id}", auto_archive_duration=1440)
-        except Exception as thread_err: 
-            print(f"⚠️ THREAD ERROR: {thread_err}")
-            
-    except Exception as e: print(f"❌ [BOT ERROR] Post failed: {e}")
-    finally: conn.close()
-
-async def edit_dispatch_message(report_id):
-    await asyncio.sleep(0.5)
-    conn = get_db_connection()
-    try:
-        conn.commit()
-        row = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,)).fetchone()
-        
-        if not row or not row['DiscordMessageID'] or not row['DiscordChannelID']: return
-            
-        channel = bot.get_channel(int(row['DiscordChannelID'])) or await bot.fetch_channel(int(row['DiscordChannelID']))
-        message = await channel.fetch_message(int(row['DiscordMessageID']))
-        
-        embed = generate_embed(row)
-        await message.edit(embed=embed)
-        print(f"🔄 [UPDATED] {report_id} modified in First Aid logs.")
-        
-    except Exception as e: print(f"❌ [BOT ERROR] Discord update failed: {e}")
-    finally: conn.close()
-
-# ==========================================
-# 3. DISCORD THREAD LOGGER (LIABILITY AUDITING)
-# ==========================================
-@bot.event
-async def on_message(message):
-    """Silently intercepts field chat inside medical threads and logs it to HQ Database for post-con review."""
-    if message.author.bot: return
-
-    # Only log messages that occur inside incident threads
-    if isinstance(message.channel, discord.Thread):
-        thread_id = str(message.channel.id)
-        
-        conn = get_db_connection()
+    """Returns a dictionary-like cursor for SQLite with retry logic for SMB networks."""
+    retries = 5
+    while retries > 0:
         try:
-            # Check if this thread belongs to one of our Tkinter tickets
-            cursor = conn.execute("SELECT ReportID FROM calls WHERE DiscordMessageID = ?", (thread_id,))
-            row = cursor.fetchone()
+            # timeout=20.0 allows it to wait in line if the GUI is currently writing
+            conn = sqlite3.connect(DB_PATH, timeout=20.0)
             
-            if row:
-                report_id = row['ReportID']
-                
-                content = message.content.strip()
-                if message.attachments: content += f" [Attached {len(message.attachments)} file(s)]"
-                if not content: content = "[Empty Message / Sticker]"
-                    
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                user_tag = f"Discord: {message.author.display_name}"
-                
-                with conn:
-                    conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
-                                 (report_id, now, user_tag, "Thread Message", content))
-                    
-                print(f"📝 [LOGGED] Thread message from {message.author.display_name} saved to {report_id}.")
-                
-        except Exception as e: print(f"❌ [DB ERROR] Failed to log thread message: {e}")
-        finally: conn.close()
+            # MATCH THE GUI'S PRAGMAS EXACTLY TO PREVENT DISK I/O ERRORS
+            conn.execute("PRAGMA journal_mode=TRUNCATE;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=20000;")
+            
+            conn.row_factory = sqlite3.Row
+            return conn
+        except sqlite3.OperationalError:
+            retries -= 1
+            time.sleep(0.5)
+    raise Exception("Database Locked: Could not connect after multiple retries.")
 
+# ==========================================
+# OFFLINE MESSAGE SYNCHRONIZATION
+# ==========================================
+async def sync_offline_messages():
+    """Scans active threads to recover any messages sent while the bot was offline."""
+    print("🔄 [SYNC] Checking active threads for missed messages...")
+    conn = get_db_connection()
+    try:
+        # Fetch all unresolved and uncancelled calls that have a Discord Thread attached
+        cursor = conn.execute("SELECT ReportID, DiscordMessageID, DiscordChannelID FROM calls WHERE (ResolutionStatus = 0 OR ResolutionStatus IS NULL) AND (Cancelled = 0 OR Cancelled IS NULL) AND DiscordMessageID IS NOT NULL")
+        active_calls = cursor.fetchall()
+
+        for row in active_calls:
+            report_id = row['ReportID']
+            thread_id = int(row['DiscordMessageID'])
+            channel_id = int(row['DiscordChannelID'])
+
+            try:
+                # Fetch the channel and thread from the Discord API
+                channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+                thread = channel.get_thread(thread_id)
+                if not thread:
+                    try: thread = await channel.fetch_thread(thread_id)
+                    except: continue # Thread might be deleted or inaccessible
+
+                # Read the last 50 messages in the thread (oldest to newest)
+                async for message in thread.history(limit=50, oldest_first=True):
+                    if message.author.bot: continue
+
+                    content = message.content.strip()
+                    if message.attachments: content += f" [Attached {len(message.attachments)} file(s)]"
+                    if not content: content = "[Empty Message / Sticker]"
+
+                    user_tag = f"Discord: {message.author.display_name}"
+
+                    # Deduplication check: Verify if this exact message is already in the database
+                    check_cursor = conn.execute("SELECT 1 FROM call_history WHERE CallID = ? AND User = ? AND Details = ?", (report_id, user_tag, content))
+                    
+                    if not check_cursor.fetchone():
+                        # Use Discord's official timestamp so the timeline remains chronologically accurate
+                        original_time = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
+                                     (report_id, original_time, user_tag, "Thread Message", content))
+                        conn.commit()
+                        print(f"🔄 [SYNCED] Recovered missed message from {message.author.display_name} for {report_id}.")
+
+            except Exception as e:
+                print(f"⚠️ [SYNC ERROR] Failed to sync {report_id}: {e}")
+                
+    except sqlite3.OperationalError as e:
+        print(f"🚨 [CRITICAL DB ERROR] Could not sync offline messages: {e}")
+    except Exception as e:
+        print(f"🚨 [UNEXPECTED ERROR] {e}")
+    finally:
+        conn.close()
+    print("✅ [SYNC] Offline message recovery complete.")
+
+
+# ==========================================
+# DISCORD EVENTS
+# ==========================================
 @bot.event
 async def on_ready():
     # Purge old slash commands from Discord's memory, as the bot is now strictly Read-Only
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     print(f"✅ Read-Only Logger successfully logged into Discord as {bot.user}")
+    
+    # Trigger the offline message recovery
+    await sync_offline_messages()
+    
     print("🚨 BOT IS FULLY ONLINE AND ROUTING EXCLUSIVELY TO FIRST AID.")
 
-if __name__ == "__main__":
+@bot.event
+async def on_message(message):
+    """Listens for field responder replies inside generated threads and logs them to SQLite."""
+    if message.author.bot: return
+    
+    # Only process messages sent inside a Thread
+    if not isinstance(message.channel, discord.Thread): return
+
+    conn = get_db_connection()
     try:
-        if not DISCORD_TOKEN: sys.exit("❌ FATAL: DISCORD_TOKEN is empty.")
+        # Check if this thread belongs to an active dispatch ticket
+        cursor = conn.execute("SELECT ReportID FROM calls WHERE DiscordMessageID = ?", (str(message.channel.id),))
+        row = cursor.fetchone()
         
-        # Start the IPC listener on a background thread so it doesn't block the Discord async loop
-        threading.Thread(target=lambda: HTTPServer(('localhost', PORT), LocalCommunicationServer).serve_forever(), daemon=True).start()
-        bot.run(DISCORD_TOKEN)
+        if row:
+            report_id = row['ReportID']
+            content = message.content.strip()
+            if message.attachments: content += f" [Attached {len(message.attachments)} file(s)]"
+            if not content: content = "[Empty Message / Sticker]"
+            
+            user_tag = f"Discord: {message.author.display_name}"
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            conn.execute("INSERT INTO call_history (CallID, Timestamp, User, Action, Details) VALUES (?, ?, ?, ?, ?)",
+                         (report_id, timestamp, user_tag, "Thread Message", content))
+            conn.commit()
+            print(f"📥 [LOGGED] Message from {message.author.display_name} saved to ticket {report_id}")
+    except Exception as e:
+        print(f"⚠️ [DB ERROR] Failed to log Discord message: {e}")
+    finally:
+        conn.close()
+
+# ==========================================
+# IPC WEB SERVER (RECEIVES PINGS FROM GUI)
+# ==========================================
+def create_dispatch_embed(call_data):
+    """Formats a standardized Dispatch Card embed."""
+    color = discord.Color.blue() if call_data['Code'] == 'Blue' else discord.Color.gold()
+    embed = discord.Embed(title=f"🚨 DISPATCH: {call_data['Code']} (ID: {call_data['ReportID']})", color=color)
+    embed.add_field(name="Location", value=call_data['Location'], inline=False)
+    embed.add_field(name="Description", value=call_data['Description'], inline=False)
+    embed.add_field(name="Caller ID", value=call_data['Caller'], inline=True)
+    embed.add_field(name="Time", value=call_data['CallTime'], inline=True)
+    embed.set_footer(text="Reply directly in this thread with vitals and status updates.")
+    return embed
+
+async def handle_dispatch(request):
+    """Triggered by the GUI when a new call is added."""
+    data = await request.json()
+    report_id = data.get('report_id')
+    
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+        call_data = cursor.fetchone()
         
-    except Exception as e: traceback.print_exc()
+        # Verify it's a valid Medical code before routing
+        if not call_data or call_data['Code'] not in ALLOWED_DISCORD_CODES:
+            return web.Response(text="Ignored: Code not in Allowed Discord Codes.")
+            
+        channel = bot.get_channel(FIRST_AID_CHANNEL_ID)
+        if not channel: return web.Response(status=500, text="First Aid channel not found.")
+        
+        embed = create_dispatch_embed(dict(call_data))
+        message = await channel.send(embed=embed)
+        
+        # Create dedicated thread
+        thread_name = f"Ticket {report_id} - {call_data['Location'][:50]}"
+        thread = await message.create_thread(name=thread_name, auto_archive_duration=1440)
+        
+        # Save Thread ID back to local database
+        conn.execute("UPDATE calls SET DiscordMessageID = ?, DiscordChannelID = ? WHERE ReportID = ?",
+                     (str(thread.id), str(channel.id), report_id))
+        conn.commit()
+        
+        return web.Response(text="Dispatch successfully routed to Discord.")
+    except Exception as e:
+        print(f"⚠️ IPC Error (Dispatch): {e}")
+        return web.Response(status=500, text=str(e))
+    finally:
+        conn.close()
+
+async def handle_update(request):
+    """Triggered by the GUI when an existing call is modified."""
+    data = await request.json()
+    report_id = data.get('report_id')
+    
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute("SELECT * FROM calls WHERE ReportID = ?", (report_id,))
+        call_data = cursor.fetchone()
+        
+        if not call_data or not call_data['DiscordMessageID']:
+            return web.Response(text="Ignored: No active Discord thread for this call.")
+            
+        thread_id = int(call_data['DiscordMessageID'])
+        channel_id = int(call_data['DiscordChannelID'])
+        
+        channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+        thread = channel.get_thread(thread_id) or await channel.fetch_thread(thread_id)
+        
+        if not thread: return web.Response(status=404, text="Thread not found.")
+        
+        # If resolved or cancelled, close the thread
+        if str(call_data['ResolutionStatus']).lower() in ('1', 'true', 1) or str(call_data['Cancelled']).lower() in ('1', 'true', 1):
+            embed = discord.Embed(title=f"✅ TICKET {report_id} CLOSED", color=discord.Color.green())
+            await thread.send(embed=embed)
+            await thread.edit(archived=True, locked=True)
+        else:
+            embed = discord.Embed(title=f"🔄 UPDATE: TICKET {report_id}", description=call_data['Description'], color=discord.Color.orange())
+            await thread.send(embed=embed)
+            
+        return web.Response(text="Update successfully pushed to Discord thread.")
+    except Exception as e:
+        print(f"⚠️ IPC Error (Update): {e}")
+        return web.Response(status=500, text=str(e))
+    finally:
+        conn.close()
+
+async def start_ipc_server():
+    """Starts the local web server to listen for GUI pings."""
+    app = web.Application()
+    app.router.add_post('/dispatch', handle_dispatch)
+    app.router.add_post('/update', handle_update)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 8080)
+    await site.start()
+    print("🌐 IPC Web Server listening on localhost:8080")
+
+# ==========================================
+# MAIN EXECUTION
+# ==========================================
+async def main():
+    async with bot:
+        bot.loop.create_task(start_ipc_server())
+        await bot.start(BOT_TOKEN)
+
+if __name__ == "__main__":
+    if not BOT_TOKEN:
+        print("CRITICAL: BOT_TOKEN is missing from config.ini")
+    else:
+        asyncio.run(main())
