@@ -114,7 +114,6 @@ async def sync_offline_messages():
         conn.close()
     print("✅ [SYNC] Offline message recovery complete.")
 
-
 # ==========================================
 # DISCORD EVENTS
 # ==========================================
@@ -165,15 +164,29 @@ async def on_message(message):
 # ==========================================
 # IPC WEB SERVER (RECEIVES PINGS FROM GUI)
 # ==========================================
-def create_dispatch_embed(call_data):
-    """Formats a standardized Dispatch Card embed."""
-    color = discord.Color.blue() if call_data['Code'] == 'Blue' else discord.Color.gold()
-    embed = discord.Embed(title=f"🚨 DISPATCH: {call_data['Code']} (ID: {call_data['ReportID']})", color=color)
+def create_dispatch_embed(call_data, is_closed=False, is_update=False):
+    """Formats a standardized Dispatch Card embed based on ticket status."""
+    if is_closed:
+        color = discord.Color.green()
+        title = f"✅ CLOSED: {call_data['Code']} (ID: {call_data['ReportID']})"
+    elif is_update:
+        color = discord.Color.orange()
+        title = f"🔄 UPDATED: {call_data['Code']} (ID: {call_data['ReportID']})"
+    else:
+        color = discord.Color.blue() if call_data['Code'] == 'Blue' else discord.Color.gold()
+        title = f"🚨 DISPATCH: {call_data['Code']} (ID: {call_data['ReportID']})"
+        
+    embed = discord.Embed(title=title, color=color)
     embed.add_field(name="Location", value=call_data['Location'], inline=False)
     embed.add_field(name="Description", value=call_data['Description'], inline=False)
     embed.add_field(name="Caller ID", value=call_data['Caller'], inline=True)
     embed.add_field(name="Time", value=call_data['CallTime'], inline=True)
-    embed.set_footer(text="Reply directly in this thread with vitals and status updates.")
+    
+    if is_closed:
+        embed.set_footer(text="This ticket has been resolved and the thread is locked.")
+    else:
+        embed.set_footer(text="Reply directly in this thread with vitals and status updates.")
+        
     return embed
 
 async def handle_dispatch(request):
@@ -233,8 +246,18 @@ async def handle_update(request):
         
         if not thread: return web.Response(status=404, text="Thread not found.")
         
-        # If resolved or cancelled, close the thread
-        if str(call_data['ResolutionStatus']).lower() in ('1', 'true', 1) or str(call_data['Cancelled']).lower() in ('1', 'true', 1):
+        is_closed = str(call_data['ResolutionStatus']).lower() in ('1', 'true', '1') or str(call_data['Cancelled']).lower() in ('1', 'true', '1')
+        
+        # Fetch and edit the original parent message to change the color visually in the main channel
+        try:
+            original_message = await channel.fetch_message(thread_id)
+            updated_embed = create_dispatch_embed(dict(call_data), is_closed=is_closed, is_update=not is_closed)
+            await original_message.edit(embed=updated_embed)
+        except discord.NotFound:
+            print(f"⚠️ Could not find original parent message for {report_id} to edit.")
+
+        # Manage the internal thread notifications
+        if is_closed:
             embed = discord.Embed(title=f"✅ TICKET {report_id} CLOSED", color=discord.Color.green())
             await thread.send(embed=embed)
             await thread.edit(archived=True, locked=True)
